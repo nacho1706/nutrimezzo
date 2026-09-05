@@ -1,0 +1,9 @@
+[tools]
+flutter = "3.47.2"
+# AGP/Flutter need JDK 17; system Java 26 breaks jlink (androidJdkImage).
+java = "temurin-17"
+
+[env]
+# Prefer disk over /tmp (tmpfs/RAM on Omarchy) for Gradle unpack.
+TMPDIR = "{{get_env(name='HOME')}}/.cache/tmp"
+ANDROID_HOME = "{{get_env(name='HOME')}}/Android/Sdk"
