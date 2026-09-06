@@ -1,6 +1,6 @@
 # NutriMezzo
 
-Diario local de calorías y macros para Android. El home abre el **Día** de hoy (zona horaria local) y muestra kcal, proteína, carbos y grasa contra una **Meta** por defecto. Desde **Comida** se captura un borrador por **Momento** (notas → **Renglones**); Cancelar lo descarta. Todavía no hay confirmación ni catálogo.
+Diario local de calorías y macros para Android. El home abre el **Día** de hoy (zona horaria local) y muestra kcal, proteína, carbos y grasa contra una **Meta** por defecto. Desde **Comida** se captura un borrador por **Momento** (notas → **Renglones**). **Listo** abre la **Confirmación**: como máximo dos **Propuestas** por Renglón (mejor match local y, si hay, una de `PuertoBusquedaIA`), o **crear Alimento** si nada pega. Los gramos se ven y se editan (incluidos los asumidos); no se confirma en 0 g. Confirmar anota la Comida en hoy, agrupa por Momento y mueve las barras. El **Catálogo** crea el mismo tipo de Alimento.
 
 Licencia: [MIT](LICENSE).
 

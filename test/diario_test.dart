@@ -264,4 +264,700 @@ void main() {
     expect(diario.hoy().macros.carbos, macrosAntes.carbos);
     expect(diario.hoy().macros.grasa, macrosAntes.grasa);
   });
+
+  test(
+    'crear un Alimento lo lista en el catálogo con Patrón derivado del nombre',
+    () async {
+      final diario = Diario();
+      final alimento = await diario.crearAlimento(
+        nombre: 'Yogur Griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+
+      expect(diario.alimentos, hasLength(1));
+      expect(alimento.nombre, 'Yogur Griego');
+      expect(alimento.patron, 'yogur griego');
+      expect(alimento.macrosPor100g.kcal, 97);
+      expect(alimento.macrosPor100g.proteina, 10);
+      expect(alimento.macrosPor100g.carbos, 3.6);
+      expect(alimento.macrosPor100g.grasa, 5);
+      expect(diario.alimentos.single.id, alimento.id);
+    },
+  );
+
+  test('Listo pone el Alimento local cuyo Patrón pega con el nombre, no la Cantidad', () async {
+    final diario = Diario();
+    final yogur = await diario.crearAlimento(
+      nombre: 'Yogur Griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g Yogur Griego',
+    );
+
+    await diario.listo();
+
+    final resuelto = diario.resoluciones.single;
+    expect(resuelto.renglon.nombre, 'Yogur Griego');
+    expect(resuelto.renglon.cantidad, 100);
+    expect(resuelto.propuestas, hasLength(1));
+    expect(resuelto.propuestas.single.alimentoId, yogur.id);
+    expect(resuelto.propuestas.single.nombre, 'Yogur Griego');
+  });
+
+  test('entre coincidencias locales gana el Patrón más específico', () async {
+    final diario = Diario();
+    await diario.crearAlimento(
+      nombre: 'avena',
+      macrosPor100g: const Macros(
+        kcal: 370,
+        proteina: 13,
+        carbos: 60,
+        grasa: 7,
+      ),
+    );
+    final instantanea = await diario.crearAlimento(
+      nombre: 'avena instantanea',
+      macrosPor100g: const Macros(
+        kcal: 360,
+        proteina: 12,
+        carbos: 62,
+        grasa: 6,
+      ),
+    );
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '60g avena instantanea',
+    );
+
+    await diario.listo();
+
+    expect(
+      diario.resoluciones.single.propuestas.single.alimentoId,
+      instantanea.id,
+    );
+  });
+
+  test(
+    'si dos Patrones empatan, gana el Alimento usado más recientemente',
+    () async {
+      var ahora = DateTime(2026, 9, 6, 8);
+      final diario = Diario(ahora: () => ahora);
+      await diario.crearAlimento(
+        nombre: 'Avena marca A',
+        macrosPor100g: const Macros(
+          kcal: 370,
+          proteina: 13,
+          carbos: 60,
+          grasa: 7,
+        ),
+        patron: 'avena',
+      );
+      ahora = DateTime(2026, 9, 6, 9);
+      final reciente = await diario.crearAlimento(
+        nombre: 'Avena marca B',
+        macrosPor100g: const Macros(
+          kcal: 380,
+          proteina: 14,
+          carbos: 58,
+          grasa: 8,
+        ),
+        patron: 'avena',
+      );
+      diario.redactarComida(momento: Momento.desayuno, notas: '60g avena');
+
+      await diario.listo();
+
+      expect(
+        diario.resoluciones.single.propuestas.single.alimentoId,
+        reciente.id,
+      );
+    },
+  );
+
+  test(
+    'sin PuertoBusquedaIA, Listo igual resuelve el catálogo local',
+    () async {
+      final diario = Diario();
+      final yogur = await diario.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+
+      await diario.listo();
+
+      expect(diario.resoluciones.single.propuestas.single.alimentoId, yogur.id);
+    },
+  );
+
+  test(
+    'un PuertoBusquedaIA vacío o roto no tapa la coincidencia local',
+    () async {
+      final diario = Diario(busquedaIA: _PuertoBusquedaIARoto());
+      final yogur = await diario.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+
+      await diario.listo();
+
+      expect(diario.resoluciones.single.propuestas.single.alimentoId, yogur.id);
+    },
+  );
+
+  test('confirmar una Propuesta local reutiliza el Alimento y lo anota en el Día de hoy', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    final yogur = await diario.crearAlimento(
+      nombre: 'yogur griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g yogur griego',
+    );
+    await diario.listo();
+
+    await diario.confirmar([
+      EleccionRenglon(
+        cantidad: 100,
+        propuesta: diario.resoluciones.single.propuestas.single,
+      ),
+    ]);
+
+    expect(diario.alimentos, hasLength(1));
+    expect(diario.alimentos.single.id, yogur.id);
+    expect(diario.borrador, isNull);
+    final dia = diario.hoy();
+    expect(dia.comidas, hasLength(1));
+    expect(dia.comidas.single.momento, Momento.desayuno);
+    expect(dia.comidas.single.renglones.single.alimentoId, yogur.id);
+    expect(dia.comidas.single.renglones.single.cantidad, 100);
+  });
+
+  test('200 g del mismo Alimento duplican los macros de 100 g y no clonan el catálogo', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.crearAlimento(
+      nombre: 'yogur griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g yogur griego\n200g yogur griego',
+    );
+    await diario.listo();
+    await diario.confirmar([
+      for (final resolucion in diario.resoluciones)
+        EleccionRenglon(
+          cantidad: resolucion.renglon.cantidad!,
+          propuesta: resolucion.propuestas.single,
+        ),
+    ]);
+
+    expect(diario.alimentos, hasLength(1));
+    final macros = diario.hoy().macros;
+    expect(macros.kcal, 291);
+    expect(macros.proteina, 30);
+    expect(macros.carbos, 10.8);
+    expect(macros.grasa, 15);
+    expect(diario.hoy().comidas.single.renglones, hasLength(2));
+    expect(
+      diario
+          .hoy()
+          .comidas
+          .single
+          .renglones
+          .map((renglon) => renglon.alimentoId)
+          .toSet(),
+      {diario.alimentos.single.id},
+    );
+  });
+
+  test(
+    'Hoy agrupa las Comidas por Momento, que no es un presupuesto',
+    () async {
+      final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+      await diario.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+      await diario.listo();
+      await diario.confirmar([
+        EleccionRenglon(
+          cantidad: 100,
+          propuesta: diario.resoluciones.single.propuestas.single,
+        ),
+      ]);
+      diario.redactarComida(
+        momento: Momento.almuerzo,
+        notas: '200g yogur griego',
+      );
+      await diario.listo();
+      await diario.confirmar([
+        EleccionRenglon(
+          cantidad: 200,
+          propuesta: diario.resoluciones.single.propuestas.single,
+        ),
+      ]);
+
+      final dia = diario.hoy();
+      expect(dia.comidas, hasLength(2));
+      expect(dia.comidas[0].momento, Momento.desayuno);
+      expect(dia.comidas[1].momento, Momento.almuerzo);
+      expect(dia.macros.kcal, 291);
+      expect(diario.meta.macros.kcal, 2000);
+    },
+  );
+
+  test('el catálogo y las Comidas se leen al reabrir el Diario', () async {
+    List<Alimento>? alimentos;
+    List<Comida>? comidas;
+    final primero = Diario(
+      ahora: () => DateTime(2026, 9, 6, 8),
+      persistirDiario: (catalogo, registradas) async {
+        alimentos = List.of(catalogo);
+        comidas = List.of(registradas);
+      },
+    );
+    await primero.crearAlimento(
+      nombre: 'yogur griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    primero.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g yogur griego',
+    );
+    await primero.listo();
+    await primero.confirmar([
+      EleccionRenglon(
+        cantidad: 100,
+        propuesta: primero.resoluciones.single.propuestas.single,
+      ),
+    ]);
+
+    final reabierto = Diario(
+      ahora: () => DateTime(2026, 9, 6, 8),
+      alimentos: alimentos!,
+      comidas: comidas!,
+    );
+    expect(reabierto.alimentos.single.nombre, 'yogur griego');
+    expect(reabierto.hoy().macros.kcal, 97);
+    expect(reabierto.hoy().comidas.single.momento, Momento.desayuno);
+  });
+
+  test('cada Renglón muestra a lo sumo dos Propuestas', () async {
+    final diario = Diario(
+      busquedaIA: _PuertoBusquedaIAFalso({
+        'kiwi': [
+          const Propuesta(
+            nombre: 'Kiwi A',
+            macrosPor100g: Macros(
+              kcal: 60,
+              proteina: 1,
+              carbos: 14,
+              grasa: 0.5,
+            ),
+          ),
+          const Propuesta(
+            nombre: 'Kiwi B',
+            macrosPor100g: Macros(
+              kcal: 61,
+              proteina: 1,
+              carbos: 15,
+              grasa: 0.4,
+            ),
+          ),
+          const Propuesta(
+            nombre: 'Kiwi C',
+            macrosPor100g: Macros(
+              kcal: 62,
+              proteina: 1,
+              carbos: 16,
+              grasa: 0.3,
+            ),
+          ),
+        ],
+      }),
+    );
+    diario.redactarComida(momento: Momento.extra, notas: 'kiwi');
+
+    await diario.listo();
+
+    expect(diario.resoluciones.single.propuestas, hasLength(2));
+    expect(diario.resoluciones.single.propuestas[0].nombre, 'Kiwi A');
+    expect(diario.resoluciones.single.propuestas[1].nombre, 'Kiwi B');
+  });
+
+  test('slot 1 es local y slot 2 es la Propuesta IA distinta', () async {
+    final diario = Diario(
+      busquedaIA: _PuertoBusquedaIAFalso({
+        'yogur griego': [
+          const Propuesta(
+            nombre: 'Yogur light',
+            macrosPor100g: Macros(kcal: 54, proteina: 8, carbos: 4, grasa: 0.2),
+          ),
+        ],
+      }),
+    );
+    final yogur = await diario.crearAlimento(
+      nombre: 'yogur griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g yogur griego',
+    );
+
+    await diario.listo();
+
+    final propuestas = diario.resoluciones.single.propuestas;
+    expect(propuestas, hasLength(2));
+    expect(propuestas[0].alimentoId, yogur.id);
+    expect(propuestas[1].nombre, 'Yogur light');
+    expect(propuestas[1].alimentoId, isNull);
+  });
+
+  test(
+    'si la IA repite el Alimento local, no se muestra el duplicado',
+    () async {
+      final diario = Diario(
+        busquedaIA: _PuertoBusquedaIAFalso({
+          'yogur griego': [
+            const Propuesta(
+              nombre: 'Yogur Griego',
+              macrosPor100g: Macros(
+                kcal: 99,
+                proteina: 11,
+                carbos: 4,
+                grasa: 5,
+              ),
+            ),
+          ],
+        }),
+      );
+      await diario.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+
+      await diario.listo();
+
+      expect(diario.resoluciones.single.propuestas, hasLength(1));
+      expect(
+        diario.resoluciones.single.propuestas.single.nombre,
+        'yogur griego',
+      );
+    },
+  );
+
+  test('sin match local, hasta dos Propuestas IA llenan los slots', () async {
+    final diario = Diario(
+      busquedaIA: _PuertoBusquedaIAFalso({
+        'banana chica': [
+          const Propuesta(
+            nombre: 'Banana',
+            macrosPor100g: Macros(
+              kcal: 89,
+              proteina: 1,
+              carbos: 23,
+              grasa: 0.3,
+            ),
+            gramosAsumidos: 80,
+          ),
+          const Propuesta(
+            nombre: 'Banana madura',
+            macrosPor100g: Macros(
+              kcal: 95,
+              proteina: 1.2,
+              carbos: 24,
+              grasa: 0.3,
+            ),
+            gramosAsumidos: 90,
+          ),
+        ],
+      }),
+    );
+    diario.redactarComida(momento: Momento.desayuno, notas: 'banana chica');
+
+    await diario.listo();
+
+    final resuelto = diario.resoluciones.single;
+    expect(resuelto.ofreceCrearAlimento, isFalse);
+    expect(resuelto.propuestas, hasLength(2));
+    expect(resuelto.propuestas[0].nombre, 'Banana');
+    expect(resuelto.propuestas[0].gramosAsumidos, 80);
+    expect(resuelto.propuestas[1].nombre, 'Banana madura');
+  });
+
+  test('Renglón sin match y sin puerto usable ofrece crear Alimento', () async {
+    final diario = Diario();
+    diario.redactarComida(momento: Momento.desayuno, notas: 'banana chica');
+
+    await diario.listo();
+
+    expect(diario.resoluciones.single.propuestas, isEmpty);
+    expect(diario.resoluciones.single.ofreceCrearAlimento, isTrue);
+  });
+
+  test(
+    'un puerto roto no bloquea el Renglón local y el sin match ofrece crear',
+    () async {
+      final diario = Diario(busquedaIA: _PuertoBusquedaIARoto());
+      await diario.crearAlimento(
+        nombre: 'avena',
+        macrosPor100g: const Macros(
+          kcal: 370,
+          proteina: 13,
+          carbos: 60,
+          grasa: 7,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '60g avena\nbanana chica',
+      );
+
+      await diario.listo();
+
+      expect(diario.resoluciones, hasLength(2));
+      expect(diario.resoluciones[0].propuestas, hasLength(1));
+      expect(diario.resoluciones[0].propuestas.single.nombre, 'avena');
+      expect(diario.resoluciones[1].ofreceCrearAlimento, isTrue);
+    },
+  );
+
+  test(
+    'confirmar una Propuesta IA crea un Alimento; la próxima línea pega local',
+    () async {
+      const macros = Macros(kcal: 89, proteina: 1, carbos: 23, grasa: 0.3);
+      final diario = Diario(
+        ahora: () => DateTime(2026, 9, 6, 8),
+        busquedaIA: _PuertoBusquedaIAFalso({
+          'banana chica': [
+            const Propuesta(
+              nombre: 'Banana',
+              macrosPor100g: macros,
+              gramosAsumidos: 80,
+            ),
+          ],
+        }),
+      );
+      diario.redactarComida(momento: Momento.desayuno, notas: 'banana chica');
+      await diario.listo();
+      await diario.confirmar([
+        EleccionRenglon(
+          cantidad: 80,
+          propuesta: diario.resoluciones.single.propuestas.single,
+        ),
+      ]);
+
+      expect(diario.alimentos, hasLength(1));
+      expect(diario.alimentos.single.nombre, 'Banana');
+      expect(diario.alimentos.single.patron, 'banana');
+      expect(diario.hoy().macros.kcal, 89 * 80 / 100);
+
+      diario.redactarComida(momento: Momento.extra, notas: '80g banana');
+      await diario.listo();
+
+      expect(
+        diario.resoluciones.single.propuestas.single.alimentoId,
+        isNotNull,
+      );
+      expect(
+        diario.resoluciones.single.propuestas.single.alimentoId,
+        diario.alimentos.single.id,
+      );
+    },
+  );
+
+  test(
+    'sin Cantidad parseada, se pueden confirmar gramos asumidos o editarlos',
+    () async {
+      const macros = Macros(kcal: 89, proteina: 1, carbos: 23, grasa: 0.3);
+      final diario = Diario(
+        ahora: () => DateTime(2026, 9, 6, 8),
+        busquedaIA: _PuertoBusquedaIAFalso({
+          'banana chica': [
+            const Propuesta(
+              nombre: 'Banana',
+              macrosPor100g: macros,
+              gramosAsumidos: 120,
+            ),
+          ],
+        }),
+      );
+      diario.redactarComida(momento: Momento.desayuno, notas: 'banana chica');
+      await diario.listo();
+      expect(diario.resoluciones.single.renglon.cantidad, isNull);
+      expect(diario.resoluciones.single.propuestas.single.gramosAsumidos, 120);
+
+      await diario.confirmar([
+        EleccionRenglon(
+          cantidad: 90,
+          propuesta: diario.resoluciones.single.propuestas.single,
+        ),
+      ]);
+
+      expect(diario.hoy().comidas.single.renglones.single.cantidad, 90);
+      expect(diario.hoy().macros.kcal, 89 * 90 / 100);
+    },
+  );
+
+  test(
+    'si la línea ya trae gramos, se ignoran los gramos asumidos de la IA',
+    () async {
+      final diario = Diario(
+        ahora: () => DateTime(2026, 9, 6, 8),
+        busquedaIA: _PuertoBusquedaIAFalso({
+          'banana': [
+            const Propuesta(
+              nombre: 'Banana',
+              macrosPor100g: Macros(
+                kcal: 89,
+                proteina: 1,
+                carbos: 23,
+                grasa: 0.3,
+              ),
+              gramosAsumidos: 120,
+            ),
+          ],
+        }),
+      );
+      diario.redactarComida(momento: Momento.desayuno, notas: '100g banana');
+      await diario.listo();
+      await diario.confirmar([
+        EleccionRenglon(
+          cantidad: diario.resoluciones.single.renglon.cantidad!,
+          propuesta: diario.resoluciones.single.propuestas.single,
+        ),
+      ]);
+
+      expect(diario.hoy().comidas.single.renglones.single.cantidad, 100);
+    },
+  );
+
+  test(
+    'crear Alimento en confirmación es el mismo tipo que el del catálogo',
+    () async {
+      final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+      diario.redactarComida(momento: Momento.desayuno, notas: 'banana chica');
+      await diario.listo();
+      expect(diario.resoluciones.single.ofreceCrearAlimento, isTrue);
+
+      await diario.confirmar([
+        const EleccionRenglon(
+          cantidad: 110,
+          crearNombre: 'Banana chica',
+          crearMacros: Macros(kcal: 89, proteina: 1, carbos: 23, grasa: 0.3),
+        ),
+      ]);
+
+      expect(diario.alimentos.single, isA<Alimento>());
+      expect(diario.alimentos.single.nombre, 'Banana chica');
+      expect(diario.alimentos.single.patron, 'banana chica');
+      expect(diario.hoy().comidas.single.renglones.single.cantidad, 110);
+    },
+  );
+
+  test('no se confirma un Renglón en 0 g', () async {
+    final diario = Diario();
+    diario.redactarComida(momento: Momento.desayuno, notas: 'banana chica');
+    await diario.listo();
+
+    expect(
+      () => diario.confirmar([
+        const EleccionRenglon(
+          cantidad: 0,
+          crearNombre: 'Banana',
+          crearMacros: Macros(kcal: 89, proteina: 1, carbos: 23, grasa: 0.3),
+        ),
+      ]),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(diario.hoy().comidas, isEmpty);
+  });
+}
+
+class _PuertoBusquedaIARoto implements PuertoBusquedaIA {
+  @override
+  Future<List<Propuesta>> buscar(Renglon renglon) async {
+    throw StateError('sin red');
+  }
+}
+
+class _PuertoBusquedaIAFalso implements PuertoBusquedaIA {
+  _PuertoBusquedaIAFalso(this.porNombre);
+
+  final Map<String, List<Propuesta>> porNombre;
+
+  @override
+  Future<List<Propuesta>> buscar(Renglon renglon) async {
+    return List.of(porNombre[renglon.nombre] ?? const []);
+  }
 }

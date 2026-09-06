@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'ajustes.dart';
 import 'captura_comida.dart';
+import 'catalogo.dart';
 import 'diario.dart';
 
 class HomeDia extends StatefulWidget {
@@ -26,6 +27,11 @@ class _HomeDiaState extends State<HomeDia> {
       appBar: AppBar(
         title: const Text('Hoy'),
         actions: [
+          IconButton(
+            tooltip: 'Catálogo',
+            onPressed: _abrirCatalogo,
+            icon: const Icon(Icons.menu_book_outlined),
+          ),
           IconButton(
             tooltip: 'Ajustes',
             onPressed: _abrirAjustes,
@@ -74,6 +80,8 @@ class _HomeDiaState extends State<HomeDia> {
             consumido: consumidos.grasa,
             objetivo: objetivo.grasa,
           ),
+          for (final momento in Momento.values)
+            ..._bloqueMomento(theme, dia, momento),
         ],
       ),
     );
@@ -90,6 +98,17 @@ class _HomeDiaState extends State<HomeDia> {
     }
   }
 
+  Future<void> _abrirCatalogo() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => CatalogoPagina(diario: widget.diario),
+      ),
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> _abrirCaptura() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -99,6 +118,32 @@ class _HomeDiaState extends State<HomeDia> {
     if (mounted) {
       setState(() {});
     }
+  }
+
+  List<Widget> _bloqueMomento(ThemeData theme, Dia dia, Momento momento) {
+    final comidas = [
+      for (final comida in dia.comidas)
+        if (comida.momento == momento) comida,
+    ];
+    if (comidas.isEmpty) {
+      return const [];
+    }
+    return [
+      const SizedBox(height: 12),
+      Text(momento.etiqueta, style: theme.textTheme.titleMedium),
+      for (final comida in comidas)
+        for (final renglon in comida.renglones)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(renglon.nombre),
+            trailing: Text(
+              '${renglon.cantidad} g',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+    ];
   }
 }
 

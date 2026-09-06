@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'confirmacion_comida.dart';
 import 'diario.dart';
 
 class CapturaComida extends StatefulWidget {
@@ -14,6 +15,7 @@ class CapturaComida extends StatefulWidget {
 class _CapturaComidaState extends State<CapturaComida> {
   final _notas = TextEditingController();
   Momento _momento = Momento.desayuno;
+  var _esperandoListo = false;
 
   @override
   void initState() {
@@ -47,6 +49,28 @@ class _CapturaComidaState extends State<CapturaComida> {
     _sincronizar();
   }
 
+  Future<void> _listo() async {
+    if (_esperandoListo) {
+      return;
+    }
+    setState(() => _esperandoListo = true);
+    try {
+      await widget.diario.listo();
+      if (!mounted) {
+        return;
+      }
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => ConfirmacionComida(diario: widget.diario),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _esperandoListo = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -69,6 +93,10 @@ class _CapturaComidaState extends State<CapturaComida> {
           ),
           actions: [
             TextButton(onPressed: _cancelar, child: const Text('Cancelar')),
+            TextButton(
+              onPressed: renglones.isEmpty || _esperandoListo ? null : _listo,
+              child: const Text('Listo'),
+            ),
           ],
         ),
         body: ListView(
@@ -82,7 +110,7 @@ class _CapturaComidaState extends State<CapturaComida> {
               children: [
                 for (final momento in Momento.values)
                   ChoiceChip(
-                    label: Text(_etiquetaMomento(momento)),
+                    label: Text(momento.etiqueta),
                     selected: _momento == momento,
                     onSelected: (_) => _elegirMomento(momento),
                   ),
@@ -128,15 +156,6 @@ class _CapturaComidaState extends State<CapturaComida> {
       ),
     );
   }
-}
-
-String _etiquetaMomento(Momento momento) {
-  return switch (momento) {
-    Momento.desayuno => 'Desayuno',
-    Momento.almuerzo => 'Almuerzo',
-    Momento.cena => 'Cena',
-    Momento.extra => 'Extra',
-  };
 }
 
 String _tituloRenglon(Renglon renglon) {

@@ -66,4 +66,38 @@ void main() {
     expect(reabierto.byok.claveApi, '');
     expect(reabierto.byok.idModelo, '');
   });
+
+  test(
+    'el catálogo y las Comidas del Día se leen al reabrir el almacén',
+    () async {
+      final primero = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+      await primero.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      primero.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+      await primero.listo();
+      await primero.confirmar([
+        EleccionRenglon(
+          cantidad: 100,
+          propuesta: primero.resoluciones.single.propuestas.single,
+        ),
+      ]);
+
+      final reabierto = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+      expect(reabierto.alimentos.single.nombre, 'yogur griego');
+      expect(reabierto.alimentos.single.patron, 'yogur griego');
+      expect(reabierto.hoy().macros.kcal, 97);
+      expect(reabierto.hoy().comidas.single.momento, Momento.desayuno);
+      expect(reabierto.hoy().comidas.single.renglones.single.cantidad, 100);
+    },
+  );
 }
