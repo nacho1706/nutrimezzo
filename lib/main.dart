@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'almacen_ajustes.dart';
 import 'diario.dart';
 import 'home_dia.dart';
 
-void main() {
-  runApp(NutriMezzoApp(diario: Diario()));
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final diario = await abrirDiario();
+  runApp(NutriMezzoApp(diario: diario));
 }
 
 class NutriMezzoApp extends StatelessWidget {
@@ -15,9 +18,6 @@ class NutriMezzoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dia = diario.hoy();
-    final meta = diario.meta;
-
     return MaterialApp(
       title: 'NutriMezzo',
       locale: const Locale('es'),
@@ -35,7 +35,7 @@ class NutriMezzoApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: HomeDia(dia: dia, meta: meta),
+      home: HomeDia(diario: diario),
     );
   }
 }

@@ -1,0 +1,69 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:nutrimezzo/almacen_ajustes.dart';
+import 'package:nutrimezzo/diario.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  test(
+    'abrirDiario usa la Meta por defecto si el teléfono está vacío',
+    () async {
+      final diario = await abrirDiario();
+
+      expect(diario.meta.macros.kcal, 2000);
+      expect(diario.meta.macros.proteina, 150);
+      expect(diario.meta.macros.carbos, 250);
+      expect(diario.meta.macros.grasa, 70);
+      expect(diario.byok.urlBase, '');
+      expect(diario.byok.claveApi, '');
+      expect(diario.byok.idModelo, '');
+    },
+  );
+
+  test('la Meta y el BYOK guardados se leen al reabrir el almacén', () async {
+    final primero = await abrirDiario();
+    await primero.guardarMeta(
+      const Meta(
+        macros: Macros(kcal: 1800, proteina: 140, carbos: 180, grasa: 55),
+      ),
+    );
+    await primero.guardarByok(
+      const Byok(
+        urlBase: 'https://api.ejemplo.com/v1',
+        claveApi: 'sk-secreto',
+        idModelo: 'gpt-4o-mini',
+      ),
+    );
+
+    final reabierto = await abrirDiario();
+    expect(reabierto.meta.macros.kcal, 1800);
+    expect(reabierto.meta.macros.proteina, 140);
+    expect(reabierto.meta.macros.carbos, 180);
+    expect(reabierto.meta.macros.grasa, 55);
+    expect(reabierto.byok.urlBase, 'https://api.ejemplo.com/v1');
+    expect(reabierto.byok.claveApi, 'sk-secreto');
+    expect(reabierto.byok.idModelo, 'gpt-4o-mini');
+  });
+
+  test('borrar BYOK deja el almacén en blanco al reabrir', () async {
+    final primero = await abrirDiario();
+    await primero.guardarByok(
+      const Byok(
+        urlBase: 'https://api.ejemplo.com/v1',
+        claveApi: 'sk-secreto',
+        idModelo: 'gpt-4o-mini',
+      ),
+    );
+    await primero.guardarByok(Byok.vacio);
+
+    final reabierto = await abrirDiario();
+    expect(reabierto.byok.urlBase, '');
+    expect(reabierto.byok.claveApi, '');
+    expect(reabierto.byok.idModelo, '');
+  });
+}

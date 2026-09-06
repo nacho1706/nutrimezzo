@@ -28,6 +28,8 @@ Los tests del dominio hablan con `Diario` (Dart puro, sin widgets):
 flutter test
 ```
 
-## Meta por defecto
+## Meta y BYOK
 
-Hasta que existan ajustes, la Meta es 2000 kcal, 150 g de proteína, 250 g de carbos y 70 g de grasa. Un Día vacío muestra ceros contra esos números, no un error.
+La Meta por defecto es 2000 kcal, 150 g de proteína, 250 g de carbos y 70 g de grasa. Un Día vacío muestra ceros contra esos números, no un error.
+
+Desde **Ajustes** (engranaje en Hoy) se edita la Meta y, si hace falta, una clave propia (URL base, clave de API, id de modelo). Todo queda en el teléfono. BYOK en blanco es válido: el diario abre igual y no llama a ningún modelo. La clave de API no va a git.

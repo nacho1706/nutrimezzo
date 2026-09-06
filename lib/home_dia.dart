@@ -1,21 +1,37 @@
 import 'package:flutter/material.dart';
 
+import 'ajustes.dart';
 import 'diario.dart';
 
-class HomeDia extends StatelessWidget {
-  const HomeDia({super.key, required this.dia, required this.meta});
+class HomeDia extends StatefulWidget {
+  const HomeDia({super.key, required this.diario});
 
-  final Dia dia;
-  final Meta meta;
+  final Diario diario;
 
+  @override
+  State<HomeDia> createState() => _HomeDiaState();
+}
+
+class _HomeDiaState extends State<HomeDia> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dia = widget.diario.hoy();
+    final meta = widget.diario.meta;
     final consumidos = dia.macros;
     final objetivo = meta.macros;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Hoy')),
+      appBar: AppBar(
+        title: const Text('Hoy'),
+        actions: [
+          IconButton(
+            tooltip: 'Ajustes',
+            onPressed: _abrirAjustes,
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
@@ -26,10 +42,7 @@ class HomeDia extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Contra la Meta',
-            style: theme.textTheme.headlineSmall,
-          ),
+          Text('Contra la Meta', style: theme.textTheme.headlineSmall),
           const SizedBox(height: 24),
           _MacroContraMeta(
             etiqueta: 'Calorías',
@@ -59,6 +72,17 @@ class HomeDia extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _abrirAjustes() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => AjustesPagina(diario: widget.diario),
+      ),
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
 }
 
 class _MacroContraMeta extends StatelessWidget {
@@ -77,7 +101,9 @@ class _MacroContraMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final progreso = objetivo <= 0 ? 0.0 : (consumido / objetivo).clamp(0.0, 1.0);
+    final progreso = objetivo <= 0
+        ? 0.0
+        : (consumido / objetivo).clamp(0.0, 1.0);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
