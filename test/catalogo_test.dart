@@ -3,10 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrimezzo/diario.dart';
 import 'package:nutrimezzo/main.dart';
 
+import 'desactivar_animaciones.dart';
+
 void main() {
   testWidgets(
     'crear un Alimento en el catálogo lo deja listo para un match local',
     (tester) async {
+      desactivarAnimaciones(tester);
       final diario = Diario();
       await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
@@ -48,6 +51,7 @@ void main() {
   testWidgets('abrir un Alimento permite editar macros, Patrón y borrar', (
     tester,
   ) async {
+    desactivarAnimaciones(tester);
     final diario = Diario();
     await diario.crearAlimento(
       nombre: 'yogur griego',

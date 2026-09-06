@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nutrimezzo/confirmacion_comida.dart';
 import 'package:nutrimezzo/diario.dart';
 import 'package:nutrimezzo/main.dart';
+
+import 'desactivar_animaciones.dart';
+import 'opacidad.dart';
 
 void main() {
   testWidgets('Listo muestra la Propuesta local y Confirmar actualiza Hoy', (
     tester,
   ) async {
+    desactivarAnimaciones(tester);
     final diario = Diario();
     await diario.crearAlimento(
       nombre: 'yogur griego',
@@ -38,9 +43,67 @@ void main() {
     expect(find.text('Desayuno'), findsOneWidget);
   });
 
+  testWidgets(
+    'un Renglón de Confirmación entra en fade, no aparece opaco de golpe',
+    (tester) async {
+      final diario = Diario();
+      await diario.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+      await diario.listo();
+      await tester.pumpWidget(
+        MaterialApp(home: ConfirmacionComida(diario: diario)),
+      );
+
+      expect(opacidadDe(tester, find.text('yogur griego').first), lessThan(1));
+
+      await tester.pumpAndSettle();
+      expect(opacidadDe(tester, find.text('yogur griego').first), 1);
+    },
+  );
+
+  testWidgets(
+    'disableAnimations muestra el Renglón de Confirmación opaco de inmediato',
+    (tester) async {
+      desactivarAnimaciones(tester);
+
+      final diario = Diario();
+      await diario.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+      await diario.listo();
+      await tester.pumpWidget(
+        MaterialApp(home: ConfirmacionComida(diario: diario)),
+      );
+
+      expect(opacidadDe(tester, find.text('yogur griego').first), 1);
+    },
+  );
+
   testWidgets('sin match se crea un Alimento con macros y gramos, no 0 g', (
     tester,
   ) async {
+    desactivarAnimaciones(tester);
     final diario = Diario();
     await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
@@ -85,6 +148,7 @@ void main() {
   testWidgets('la Propuesta IA muestra gramos asumidos y se pueden editar', (
     tester,
   ) async {
+    desactivarAnimaciones(tester);
     final diario = Diario(
       busquedaIA: _PuertoBusquedaIAFalso({
         'banana chica': [

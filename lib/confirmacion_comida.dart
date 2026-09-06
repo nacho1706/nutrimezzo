@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'diario.dart';
+import 'motion.dart';
 
 class ConfirmacionComida extends StatefulWidget {
   const ConfirmacionComida({super.key, required this.diario});
@@ -44,9 +45,13 @@ class _ConfirmacionComidaState extends State<ConfirmacionComida> {
           children: [
             for (var i = 0; i < _filas.length; i++) ...[
               if (i > 0) const SizedBox(height: 28),
-              _RenglonConfirmacion(
-                fila: _filas[i],
-                onElegir: (indice) => _elegirPropuesta(_filas[i], indice),
+              entradaRenglon(
+                context,
+                _RenglonConfirmacion(
+                  fila: _filas[i],
+                  onElegir: (indice) => _elegirPropuesta(_filas[i], indice),
+                ),
+                key: ValueKey(i),
               ),
             ],
             const SizedBox(height: 24),

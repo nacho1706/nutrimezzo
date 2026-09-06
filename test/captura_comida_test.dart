@@ -3,10 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrimezzo/diario.dart';
 import 'package:nutrimezzo/main.dart';
 
+import 'desactivar_animaciones.dart';
+
 void main() {
   testWidgets(
     'un desayuno de tres líneas se ve parseado y Cancelar no escribe el Día',
     (tester) async {
+      desactivarAnimaciones(tester);
       final diario = Diario();
       await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
@@ -39,6 +42,7 @@ void main() {
   testWidgets(
     'Momento se puede elegir entre desayuno, almuerzo, cena y extra',
     (tester) async {
+      desactivarAnimaciones(tester);
       final diario = Diario();
       await tester.pumpWidget(NutriMezzoApp(diario: diario));
       await tester.tap(find.text('Comida'));

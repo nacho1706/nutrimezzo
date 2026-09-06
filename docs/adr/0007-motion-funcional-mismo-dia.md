@@ -1,0 +1,3 @@
+# Motion explains same-Día change; other dates snap
+
+Día totals tween only while the shown fecha stays put, so confirming a Comida or editing an Alimento reads as that day updating. Crossing dates, cold start, and returning from Ajustes snap (or fade the body) because interpolating lunes 1800 kcal into martes 0 looks like deleted food. `Diario` stays unaware: motion is a view of already-computed macros. `TweenAnimationBuilder` drives the numbers and bar `value`; `flutter_animate` is the only allowlist for Renglón enter (fade + small slideY, ~250 ms, `easeOutCubic`). `MediaQuery.disableAnimationsOf` forces duration 0. Per-screen `AnimationController`, Lottie/Rive, Hero, custom page routes, and first-paint fill-from-zero are out because they decorate or lie.

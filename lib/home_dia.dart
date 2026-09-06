@@ -4,6 +4,7 @@ import 'ajustes.dart';
 import 'captura_comida.dart';
 import 'catalogo.dart';
 import 'diario.dart';
+import 'motion.dart';
 
 class HomeDia extends StatefulWidget {
   const HomeDia({super.key, required this.diario});
@@ -256,37 +257,46 @@ class _MacroContraMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final progreso = objetivo <= 0
-        ? 0.0
-        : (consumido / objetivo).clamp(0.0, 1.0);
+
+    final duration = duracionMotionDe(context);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(end: consumido.toDouble()),
+        duration: duration,
+        curve: Curves.easeOutCubic,
+        builder: (context, valor, child) {
+          final progreso = objetivo <= 0
+              ? 0.0
+              : (valor / objetivo).clamp(0.0, 1.0);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Text(etiqueta, style: theme.textTheme.titleMedium),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(etiqueta, style: theme.textTheme.titleMedium),
+                  ),
+                  Text(
+                    '${_entero(valor)} / ${_entero(objetivo)} $unidad',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                '${_entero(consumido)} / ${_entero(objetivo)} $unidad',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: LinearProgressIndicator(
+                  value: progreso.toDouble(),
+                  minHeight: 10,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: progreso.toDouble(),
-              minHeight: 10,
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

@@ -3,10 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrimezzo/diario.dart';
 import 'package:nutrimezzo/main.dart';
 
+import 'desactivar_animaciones.dart';
+
 void main() {
   testWidgets('guardar Meta en Ajustes actualiza los denominadores de Hoy', (
     tester,
   ) async {
+    desactivarAnimaciones(tester);
     await tester.pumpWidget(NutriMezzoApp(diario: Diario()));
 
     expect(find.text('0 / 2000 kcal'), findsOneWidget);
@@ -26,6 +29,7 @@ void main() {
   testWidgets('guardar y borrar BYOK queda en el Diario, sin HTTP', (
     tester,
   ) async {
+    desactivarAnimaciones(tester);
     final diario = Diario();
     await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
@@ -61,6 +65,7 @@ void main() {
   });
 
   testWidgets('Ajustes se puede guardar con BYOK en blanco', (tester) async {
+    desactivarAnimaciones(tester);
     final diario = Diario();
     await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
