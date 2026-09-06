@@ -716,6 +716,47 @@ void main() {
     },
   );
 
+  test('slot 2 es la primera IA distinta aunque las primeras filas dupliquen lo local', () async {
+    final diario = Diario(
+      busquedaIA: _PuertoBusquedaIAFalso({
+        'yogur griego': [
+          const Propuesta(
+            nombre: 'Yogur Griego',
+            macrosPor100g: Macros(kcal: 99, proteina: 11, carbos: 4, grasa: 5),
+          ),
+          const Propuesta(
+            nombre: 'yogur griego',
+            macrosPor100g: Macros(kcal: 98, proteina: 10, carbos: 4, grasa: 5),
+          ),
+          const Propuesta(
+            nombre: 'Yogur light',
+            macrosPor100g: Macros(kcal: 54, proteina: 8, carbos: 4, grasa: 0.2),
+          ),
+        ],
+      }),
+    );
+    final yogur = await diario.crearAlimento(
+      nombre: 'yogur griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g yogur griego',
+    );
+
+    await diario.listo();
+
+    final propuestas = diario.resoluciones.single.propuestas;
+    expect(propuestas, hasLength(2));
+    expect(propuestas[0].alimentoId, yogur.id);
+    expect(propuestas[1].nombre, 'Yogur light');
+  });
+
   test('sin match local, hasta dos Propuestas IA llenan los slots', () async {
     final diario = Diario(
       busquedaIA: _PuertoBusquedaIAFalso({
@@ -822,15 +863,19 @@ void main() {
       expect(diario.alimentos.single.patron, 'banana');
       expect(diario.hoy().macros.kcal, 89 * 80 / 100);
 
-      diario.redactarComida(momento: Momento.extra, notas: '80g banana');
-      await diario.listo();
+      final despues = Diario(
+        ahora: () => DateTime(2026, 9, 6, 9),
+        alimentos: diario.alimentos,
+      );
+      despues.redactarComida(momento: Momento.extra, notas: 'banana chica');
+      await despues.listo();
 
       expect(
-        diario.resoluciones.single.propuestas.single.alimentoId,
+        despues.resoluciones.single.propuestas.single.alimentoId,
         isNotNull,
       );
       expect(
-        diario.resoluciones.single.propuestas.single.alimentoId,
+        despues.resoluciones.single.propuestas.single.alimentoId,
         diario.alimentos.single.id,
       );
     },

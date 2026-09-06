@@ -36,24 +36,25 @@ void main() {
     },
   );
 
-  testWidgets('Momento se puede elegir entre desayuno, almuerzo, cena y extra', (
-    tester,
-  ) async {
-    final diario = Diario();
-    await tester.pumpWidget(NutriMezzoApp(diario: diario));
-    await tester.tap(find.text('Comida'));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'Momento se puede elegir entre desayuno, almuerzo, cena y extra',
+    (tester) async {
+      final diario = Diario();
+      await tester.pumpWidget(NutriMezzoApp(diario: diario));
+      await tester.tap(find.text('Comida'));
+      await tester.pumpAndSettle();
 
-    const opciones = {
-      'Desayuno': Momento.desayuno,
-      'Almuerzo': Momento.almuerzo,
-      'Cena': Momento.cena,
-      'Extra': Momento.extra,
-    };
-    for (final entrada in opciones.entries) {
-      await tester.tap(find.text(entrada.key));
-      await tester.pump();
-      expect(diario.borrador!.momento, entrada.value);
-    }
-  });
+      const opciones = {
+        'Desayuno': Momento.desayuno,
+        'Almuerzo': Momento.almuerzo,
+        'Cena': Momento.cena,
+        'Extra': Momento.extra,
+      };
+      for (final entrada in opciones.entries) {
+        await tester.tap(find.text(entrada.key));
+        await tester.pump();
+        expect(diario.borrador!.momento, entrada.value);
+      }
+    },
+  );
 }

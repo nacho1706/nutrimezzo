@@ -96,7 +96,7 @@ class Diario {
       return const [];
     }
     try {
-      return (await puerto.buscar(renglon)).take(2).toList();
+      return await puerto.buscar(renglon);
     } catch (_) {
       return const [];
     }
@@ -381,12 +381,10 @@ class RenglonResuelto {
     if (parseada != null) {
       return parseada;
     }
-    for (final propuesta in propuestas) {
-      if (propuesta.gramosAsumidos != null) {
-        return propuesta.gramosAsumidos;
-      }
+    if (propuestas.isEmpty) {
+      return null;
     }
-    return null;
+    return propuestas.first.gramosAsumidos;
   }
 }
 
