@@ -47,6 +47,7 @@ class _CatalogoPaginaState extends State<CatalogoPagina> {
                   contentPadding: EdgeInsets.zero,
                   title: Text(alimento.nombre),
                   subtitle: Text('${_textoNumero(macros.kcal)} kcal / 100 g'),
+                  onTap: () => _abrir(alimento),
                 );
               },
             ),
@@ -54,9 +55,14 @@ class _CatalogoPaginaState extends State<CatalogoPagina> {
   }
 
   Future<void> _crear() async {
+    await _abrir(null);
+  }
+
+  Future<void> _abrir(Alimento? alimento) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => _AltaAlimento(diario: widget.diario),
+        builder: (_) =>
+            _EditorAlimento(diario: widget.diario, alimento: alimento),
       ),
     );
     if (mounted) {
@@ -65,23 +71,39 @@ class _CatalogoPaginaState extends State<CatalogoPagina> {
   }
 }
 
-class _AltaAlimento extends StatefulWidget {
-  const _AltaAlimento({required this.diario});
+class _EditorAlimento extends StatefulWidget {
+  const _EditorAlimento({required this.diario, this.alimento});
 
   final Diario diario;
+  final Alimento? alimento;
 
   @override
-  State<_AltaAlimento> createState() => _AltaAlimentoState();
+  State<_EditorAlimento> createState() => _EditorAlimentoState();
 }
 
-class _AltaAlimentoState extends State<_AltaAlimento> {
+class _EditorAlimentoState extends State<_EditorAlimento> {
   final _formKey = GlobalKey<FormState>();
   final _nombre = TextEditingController();
   final _kcal = TextEditingController();
   final _proteina = TextEditingController();
   final _carbos = TextEditingController();
   final _grasa = TextEditingController();
+  final _patron = TextEditingController();
   var _guardando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final alimento = widget.alimento;
+    if (alimento != null) {
+      _nombre.text = alimento.nombre;
+      _kcal.text = _textoNumero(alimento.macrosPor100g.kcal);
+      _proteina.text = _textoNumero(alimento.macrosPor100g.proteina);
+      _carbos.text = _textoNumero(alimento.macrosPor100g.carbos);
+      _grasa.text = _textoNumero(alimento.macrosPor100g.grasa);
+      _patron.text = alimento.patron;
+    }
+  }
 
   @override
   void dispose() {
@@ -90,13 +112,25 @@ class _AltaAlimentoState extends State<_AltaAlimento> {
     _proteina.dispose();
     _carbos.dispose();
     _grasa.dispose();
+    _patron.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final existente = widget.alimento;
     return Scaffold(
-      appBar: AppBar(title: const Text('Nuevo Alimento')),
+      appBar: AppBar(
+        title: Text(existente == null ? 'Nuevo Alimento' : existente.nombre),
+        actions: [
+          if (existente != null)
+            IconButton(
+              tooltip: 'Borrar Alimento',
+              onPressed: _guardando ? null : _borrar,
+              icon: const Icon(Icons.delete_outline),
+            ),
+        ],
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -117,6 +151,14 @@ class _AltaAlimentoState extends State<_AltaAlimento> {
             _campoMacro(_proteina, 'Proteína (P)', 'g / 100 g'),
             _campoMacro(_carbos, 'Carbos (C)', 'g / 100 g'),
             _campoMacro(_grasa, 'Grasa (F)', 'g / 100 g'),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _patron,
+              decoration: const InputDecoration(
+                labelText: 'Patrón',
+                helperText: 'Palabras o regex. Vacío usa el nombre.',
+              ),
+            ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: _guardando ? null : _guardar,
@@ -161,15 +203,46 @@ class _AltaAlimentoState extends State<_AltaAlimento> {
     }
     setState(() => _guardando = true);
     try {
-      await widget.diario.crearAlimento(
-        nombre: _nombre.text.trim(),
-        macrosPor100g: Macros(
-          kcal: _parsearNumero(_kcal.text)!,
-          proteina: _parsearNumero(_proteina.text)!,
-          carbos: _parsearNumero(_carbos.text)!,
-          grasa: _parsearNumero(_grasa.text)!,
-        ),
+      final macros = Macros(
+        kcal: _parsearNumero(_kcal.text)!,
+        proteina: _parsearNumero(_proteina.text)!,
+        carbos: _parsearNumero(_carbos.text)!,
+        grasa: _parsearNumero(_grasa.text)!,
       );
+      final existente = widget.alimento;
+      final patron = _patron.text.trim();
+      if (existente == null) {
+        await widget.diario.crearAlimento(
+          nombre: _nombre.text.trim(),
+          macrosPor100g: macros,
+          patron: patron.isEmpty ? null : patron,
+        );
+      } else {
+        await widget.diario.editarAlimento(
+          id: existente.id,
+          nombre: _nombre.text.trim(),
+          macrosPor100g: macros,
+          patron: patron,
+        );
+      }
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _guardando = false);
+      }
+    }
+  }
+
+  Future<void> _borrar() async {
+    final existente = widget.alimento;
+    if (existente == null) {
+      return;
+    }
+    setState(() => _guardando = true);
+    try {
+      await widget.diario.eliminarAlimento(existente.id);
       if (mounted) {
         Navigator.of(context).pop();
       }

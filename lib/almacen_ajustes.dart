@@ -89,6 +89,7 @@ Alimento _alimentoDe(Map<String, dynamic> json) {
 Comida _comidaDe(Map<String, dynamic> json) {
   final fecha = DateTime.parse(json['fecha'] as String);
   return Comida(
+    id: json['id'] as String? ?? '',
     momento: Momento.values.byName(json['momento'] as String),
     fecha: DateTime(fecha.year, fecha.month, fecha.day),
     renglones: [
@@ -156,6 +157,7 @@ Map<String, Object?> _alimentoJson(Alimento alimento) {
 Map<String, Object?> _comidaJson(Comida comida) {
   final fecha = comida.fecha ?? DateTime(1970);
   return {
+    'id': comida.id,
     'fecha':
         '${fecha.year.toString().padLeft(4, '0')}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}',
     'momento': comida.momento.name,

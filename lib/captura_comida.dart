@@ -4,9 +4,10 @@ import 'confirmacion_comida.dart';
 import 'diario.dart';
 
 class CapturaComida extends StatefulWidget {
-  const CapturaComida({super.key, required this.diario});
+  const CapturaComida({super.key, required this.diario, this.fecha});
 
   final Diario diario;
+  final DateTime? fecha;
 
   @override
   State<CapturaComida> createState() => _CapturaComidaState();
@@ -20,7 +21,11 @@ class _CapturaComidaState extends State<CapturaComida> {
   @override
   void initState() {
     super.initState();
-    widget.diario.redactarComida(momento: _momento, notas: _notas.text);
+    widget.diario.redactarComida(
+      momento: _momento,
+      notas: _notas.text,
+      fecha: widget.fecha,
+    );
     _notas.addListener(_sincronizar);
   }
 
@@ -33,7 +38,11 @@ class _CapturaComidaState extends State<CapturaComida> {
   }
 
   void _sincronizar() {
-    widget.diario.redactarComida(momento: _momento, notas: _notas.text);
+    widget.diario.redactarComida(
+      momento: _momento,
+      notas: _notas.text,
+      fecha: widget.fecha,
+    );
     setState(() {});
   }
 

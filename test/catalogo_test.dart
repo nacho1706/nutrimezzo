@@ -44,4 +44,48 @@ void main() {
       expect(diario.alimentos.single.patron, 'yogur griego');
     },
   );
+
+  testWidgets('abrir un Alimento permite editar macros, Patrón y borrar', (
+    tester,
+  ) async {
+    final diario = Diario();
+    await diario.crearAlimento(
+      nombre: 'yogur griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+    await tester.tap(find.byTooltip('Catálogo'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('yogur griego'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Calorías'),
+      '59',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Patrón'),
+      r'yogur|yogurt',
+    );
+    await tester.ensureVisible(find.text('Guardar'));
+    await tester.tap(find.text('Guardar'));
+    await tester.pumpAndSettle();
+
+    expect(diario.alimentos.single.macrosPor100g.kcal, 59);
+    expect(diario.alimentos.single.patron, r'yogur|yogurt');
+    expect(find.text('yogur griego'), findsOneWidget);
+
+    await tester.tap(find.text('yogur griego'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Borrar Alimento'));
+    await tester.pumpAndSettle();
+
+    expect(diario.alimentos, isEmpty);
+    expect(find.text('yogur griego'), findsNothing);
+  });
 }

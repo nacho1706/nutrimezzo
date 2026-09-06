@@ -28,6 +28,19 @@ class Diario {
         _siguienteId = numero;
       }
     }
+    for (final comida in _comidas) {
+      final numero = _numeroDeComidaId(comida.id);
+      if (numero > _siguienteComidaId) {
+        _siguienteComidaId = numero;
+      }
+    }
+    for (var i = 0; i < _comidas.length; i++) {
+      final comida = _comidas[i];
+      if (comida.id.isNotEmpty) {
+        continue;
+      }
+      _comidas[i] = comida.copiaCon(id: 'c${++_siguienteComidaId}');
+    }
   }
 
   final DateTime Function() _ahora;
@@ -42,12 +55,77 @@ class Diario {
   final List<Comida> _comidas;
   List<RenglonResuelto> _resoluciones = const [];
   var _siguienteId = 0;
+  var _siguienteComidaId = 0;
 
   Comida? get borrador => _borrador;
 
   List<Alimento> get alimentos => List.unmodifiable(_alimentos);
 
   List<RenglonResuelto> get resoluciones => List.unmodifiable(_resoluciones);
+
+  Future<void> editarAlimento({
+    required String id,
+    String? nombre,
+    Macros? macrosPor100g,
+    String? patron,
+  }) async {
+    final indice = _alimentos.indexWhere((alimento) => alimento.id == id);
+    if (indice < 0) {
+      throw ArgumentError('alimento');
+    }
+    final actual = _alimentos[indice];
+    final nombreFinal = nombre ?? actual.nombre;
+    final patronFinal = patron == null
+        ? actual.patron
+        : (patron.trim().isEmpty
+              ? _patronPorDefecto(nombreFinal)
+              : patron.trim());
+    _alimentos[indice] = Alimento(
+      id: actual.id,
+      nombre: nombreFinal,
+      macrosPor100g: macrosPor100g ?? actual.macrosPor100g,
+      patron: patronFinal,
+      usadoPorUltimaVez: actual.usadoPorUltimaVez,
+    );
+    if (nombre != null && nombre != actual.nombre) {
+      for (var i = 0; i < _comidas.length; i++) {
+        final comida = _comidas[i];
+        final renglones = [
+          for (final renglon in comida.renglones)
+            renglon.alimentoId == id
+                ? Renglon(
+                    nombre: nombre,
+                    cantidad: renglon.cantidad,
+                    alimentoId: renglon.alimentoId,
+                  )
+                : renglon,
+        ];
+        _comidas[i] = comida.copiaCon(renglones: renglones);
+      }
+    }
+    await _escribirDiario();
+  }
+
+  Future<void> eliminarAlimento(String id) async {
+    final indice = _alimentos.indexWhere((alimento) => alimento.id == id);
+    if (indice < 0) {
+      throw ArgumentError('alimento');
+    }
+    _alimentos.removeAt(indice);
+    for (var i = _comidas.length - 1; i >= 0; i--) {
+      final comida = _comidas[i];
+      final renglones = [
+        for (final renglon in comida.renglones)
+          if (renglon.alimentoId != id) renglon,
+      ];
+      if (renglones.isEmpty) {
+        _comidas.removeAt(i);
+      } else if (renglones.length != comida.renglones.length) {
+        _comidas[i] = comida.copiaCon(renglones: renglones);
+      }
+    }
+    await _escribirDiario();
+  }
 
   Future<Alimento> crearAlimento({
     required String nombre,
@@ -71,8 +149,18 @@ class Diario {
     _resoluciones = const [];
   }
 
-  void redactarComida({required Momento momento, required String notas}) {
-    _borrador = Comida(momento: momento, renglones: _parsearNotas(notas));
+  void redactarComida({
+    required Momento momento,
+    required String notas,
+    DateTime? fecha,
+  }) {
+    _borrador = Comida(
+      momento: momento,
+      renglones: _parsearNotas(notas),
+      fecha: fecha == null
+          ? null
+          : DateTime(fecha.year, fecha.month, fecha.day),
+    );
     _resoluciones = const [];
   }
 
@@ -177,14 +265,84 @@ class Diario {
       );
     }
     final ahora = _ahora();
+    final fecha =
+        borrador.fecha ?? DateTime(ahora.year, ahora.month, ahora.day);
     _comidas.add(
       Comida(
+        id: 'c${++_siguienteComidaId}',
         momento: borrador.momento,
         renglones: renglones,
-        fecha: DateTime(ahora.year, ahora.month, ahora.day),
+        fecha: fecha,
       ),
     );
     cancelarBorrador();
+    await _escribirDiario();
+  }
+
+  Future<void> editarRenglon({
+    required String comidaId,
+    required int indice,
+    num? cantidad,
+    String? alimentoId,
+  }) async {
+    if (cantidad != null && cantidad <= 0) {
+      throw ArgumentError('cantidad');
+    }
+    final indiceComida = _indiceComida(comidaId);
+    final comida = _comidas[indiceComida];
+    if (indice < 0 || indice >= comida.renglones.length) {
+      throw ArgumentError('indice');
+    }
+    final actual = comida.renglones[indice];
+    var nombre = actual.nombre;
+    var idAlimento = actual.alimentoId;
+    if (alimentoId != null) {
+      final alimento = _alimentos.firstWhere(
+        (candidato) => candidato.id == alimentoId,
+        orElse: () => throw ArgumentError('alimento'),
+      );
+      nombre = alimento.nombre;
+      idAlimento = alimento.id;
+      _marcarUso(alimentoId);
+    }
+    final renglones = List<Renglon>.of(comida.renglones);
+    renglones[indice] = Renglon(
+      nombre: nombre,
+      cantidad: cantidad ?? actual.cantidad,
+      alimentoId: idAlimento,
+    );
+    _comidas[indiceComida] = comida.copiaCon(renglones: renglones);
+    await _escribirDiario();
+  }
+
+  Future<void> eliminarRenglon({
+    required String comidaId,
+    required int indice,
+  }) async {
+    final indiceComida = _indiceComida(comidaId);
+    final comida = _comidas[indiceComida];
+    if (indice < 0 || indice >= comida.renglones.length) {
+      throw ArgumentError('indice');
+    }
+    final renglones = List<Renglon>.of(comida.renglones)..removeAt(indice);
+    if (renglones.isEmpty) {
+      _comidas.removeAt(indiceComida);
+    } else {
+      _comidas[indiceComida] = comida.copiaCon(renglones: renglones);
+    }
+    await _escribirDiario();
+  }
+
+  Future<void> eliminarComida(String comidaId) async {
+    final indiceComida = _indiceComida(comidaId);
+    _comidas.removeAt(indiceComida);
+    await _escribirDiario();
+  }
+
+  Future<void> cambiarMomento(String comidaId, Momento momento) async {
+    final indiceComida = _indiceComida(comidaId);
+    final comida = _comidas[indiceComida];
+    _comidas[indiceComida] = comida.copiaCon(momento: momento);
     await _escribirDiario();
   }
 
@@ -242,11 +400,14 @@ class Diario {
   }
 
   Dia hoy() {
-    final ahora = _ahora();
-    final fecha = DateTime(ahora.year, ahora.month, ahora.day);
+    return dia(_ahora());
+  }
+
+  Dia dia(DateTime fecha) {
+    final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
     final comidas = [
       for (final comida in _comidas)
-        if (comida.fecha == fecha) comida,
+        if (comida.fecha == fechaDia) comida,
     ];
     var macros = Macros.cero;
     for (final comida in comidas) {
@@ -257,7 +418,7 @@ class Diario {
         macros = macros + alimento.macrosPor100g.paraGramos(renglon.cantidad!);
       }
     }
-    return Dia(fecha: fecha, macros: macros, comidas: comidas);
+    return Dia(fecha: fechaDia, macros: macros, comidas: comidas);
   }
 
   Meta get meta => _meta;
@@ -284,10 +445,25 @@ class Diario {
       List.unmodifiable(_comidas),
     );
   }
+
+  int _indiceComida(String comidaId) {
+    final indice = _comidas.indexWhere((comida) => comida.id == comidaId);
+    if (indice < 0) {
+      throw ArgumentError('comida');
+    }
+    return indice;
+  }
 }
 
 int _numeroDeId(String id) {
   if (!id.startsWith('a')) {
+    return 0;
+  }
+  return int.tryParse(id.substring(1)) ?? 0;
+}
+
+int _numeroDeComidaId(String id) {
+  if (!id.startsWith('c')) {
     return 0;
   }
   return int.tryParse(id.substring(1)) ?? 0;
@@ -300,6 +476,10 @@ String _normalizar(String texto) {
 }
 
 bool _patronPega(String patron, String nombre) {
+  final regex = _regexDePatron(patron);
+  if (regex != null) {
+    return regex.hasMatch(_normalizar(nombre));
+  }
   final palabrasNombre = _normalizar(nombre)
       .split(' ')
       .where((palabra) => palabra.isNotEmpty)
@@ -311,6 +491,26 @@ bool _patronPega(String patron, String nombre) {
     return false;
   }
   return palabrasPatron.every(palabrasNombre.contains);
+}
+
+RegExp? _regexDePatron(String patron) {
+  var fuente = patron.trim();
+  if (!_pareceRegex(fuente)) {
+    return null;
+  }
+  if (fuente.startsWith('(?i)')) {
+    fuente = fuente.substring(4);
+  }
+  try {
+    return RegExp(fuente, caseSensitive: false);
+  } catch (_) {
+    return null;
+  }
+}
+
+bool _pareceRegex(String patron) {
+  return patron.startsWith('(?i)') ||
+      RegExp(r'[.\\^$*+?()\[\]{}|]').hasMatch(patron);
 }
 
 int _especificidad(Alimento alimento) {
@@ -411,11 +611,31 @@ class Renglon {
 }
 
 class Comida {
-  const Comida({required this.momento, required this.renglones, this.fecha});
+  const Comida({
+    required this.momento,
+    required this.renglones,
+    this.fecha,
+    this.id = '',
+  });
 
+  final String id;
   final Momento momento;
   final List<Renglon> renglones;
   final DateTime? fecha;
+
+  Comida copiaCon({
+    String? id,
+    Momento? momento,
+    DateTime? fecha,
+    List<Renglon>? renglones,
+  }) {
+    return Comida(
+      id: id ?? this.id,
+      momento: momento ?? this.momento,
+      fecha: fecha ?? this.fecha,
+      renglones: renglones ?? this.renglones,
+    );
+  }
 }
 
 class Dia {

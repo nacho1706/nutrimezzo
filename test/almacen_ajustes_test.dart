@@ -100,4 +100,45 @@ void main() {
       expect(reabierto.hoy().comidas.single.renglones.single.cantidad, 100);
     },
   );
+
+  test(
+    'editar un Alimento persiste y el Día reabierto usa los macros nuevos',
+    () async {
+      final primero = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+      final yogur = await primero.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      primero.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+      await primero.listo();
+      await primero.confirmar([
+        EleccionRenglon(
+          cantidad: 100,
+          propuesta: primero.resoluciones.single.propuestas.single,
+        ),
+      ]);
+      await primero.editarAlimento(
+        id: yogur.id,
+        macrosPor100g: const Macros(
+          kcal: 59,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 0.4,
+        ),
+      );
+
+      final reabierto = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+      expect(reabierto.hoy().macros.kcal, 59);
+      expect(reabierto.hoy().comidas.single.id, isNotEmpty);
+      expect(reabierto.alimentos.single.macrosPor100g.kcal, 59);
+    },
+  );
 }
