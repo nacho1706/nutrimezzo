@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'busqueda_ia.dart';
 import 'diario.dart';
 
 const _kcal = 'meta.kcal';
@@ -16,16 +17,19 @@ const _comidas = 'comidas';
 
 Future<Diario> abrirDiario({DateTime Function()? ahora}) async {
   final prefs = await SharedPreferences.getInstance();
-  return Diario(
+  late final Diario diario;
+  diario = Diario(
     ahora: ahora,
     meta: _metaDe(prefs),
     byok: _byokDe(prefs),
     alimentos: _alimentosDe(prefs),
     comidas: _comidasDe(prefs),
+    busquedaIA: BusquedaIAOpenAI(byok: () => diario.byok),
     persistir: (meta, byok) => _guardar(prefs, meta, byok),
     persistirDiario: (alimentos, comidas) =>
         _guardarDiario(prefs, alimentos, comidas),
   );
+  return diario;
 }
 
 Meta _metaDe(SharedPreferences prefs) {
