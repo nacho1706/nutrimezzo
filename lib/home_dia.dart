@@ -1,23 +1,44 @@
 import 'package:flutter/material.dart';
 
+import 'captura_comida.dart';
 import 'diario.dart';
 
-class HomeDia extends StatelessWidget {
-  const HomeDia({super.key, required this.dia, required this.meta});
+class HomeDia extends StatefulWidget {
+  const HomeDia({super.key, required this.diario});
 
-  final Dia dia;
-  final Meta meta;
+  final Diario diario;
+
+  @override
+  State<HomeDia> createState() => _HomeDiaState();
+}
+
+class _HomeDiaState extends State<HomeDia> {
+  Future<void> _abrirCaptura() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CapturaComida(diario: widget.diario),
+      ),
+    );
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dia = widget.diario.hoy();
+    final meta = widget.diario.meta;
     final consumidos = dia.macros;
     final objetivo = meta.macros;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Hoy')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _abrirCaptura,
+        icon: const Icon(Icons.edit_note),
+        label: const Text('Comida'),
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 88),
         children: [
           Text(
             _fechaEnEspanol(dia.fecha),
