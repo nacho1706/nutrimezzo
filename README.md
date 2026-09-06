@@ -1,6 +1,6 @@
 # NutriMezzo
 
-Diario local de calorías y macros para Android. El home abre el **Día** de hoy (zona horaria local) y muestra kcal, proteína, carbos y grasa contra una **Meta** por defecto. Todavía no hay captura de Comida ni catálogo.
+Diario local de calorías y macros para Android. El home abre el **Día** de hoy (zona horaria local) y muestra kcal, proteína, carbos y grasa contra una **Meta** por defecto. Desde **Comida** se captura un borrador por **Momento** (notas → **Renglones**); Cancelar lo descarta. Todavía no hay confirmación ni catálogo.
 
 Licencia: [MIT](LICENSE).
 

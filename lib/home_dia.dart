@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'ajustes.dart';
+import 'captura_comida.dart';
 import 'diario.dart';
 
 class HomeDia extends StatefulWidget {
@@ -32,8 +33,13 @@ class _HomeDiaState extends State<HomeDia> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _abrirCaptura,
+        icon: const Icon(Icons.edit_note),
+        label: const Text('Comida'),
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 88),
         children: [
           Text(
             _fechaEnEspanol(dia.fecha),
@@ -77,6 +83,17 @@ class _HomeDiaState extends State<HomeDia> {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => AjustesPagina(diario: widget.diario),
+      ),
+    );
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _abrirCaptura() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => CapturaComida(diario: widget.diario),
       ),
     );
     if (mounted) {
