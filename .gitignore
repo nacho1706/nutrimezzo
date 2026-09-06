@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Local-only machine settings (copy from .env.example). Never commit.
+.env

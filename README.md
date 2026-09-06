@@ -18,6 +18,8 @@ flutter run
 
 Elegí un dispositivo Android cuando `flutter devices` lo liste. La primera vez, `flutter doctor` indica si falta el SDK o las licencias (`flutter doctor --android-licenses`). Si `/tmp` es tmpfs chico (Omarchy), mise apunta `TMPDIR` al disco para que Gradle no se quede sin espacio.
 
+Para un atajo local (`scripts/run-android.sh`), copiá `.env.example` a `.env` y poné el serial de `flutter devices`. Eso es solo desarrollo en tu máquina; `.env` no se commitea.
+
 ## Tests
 
 Los tests del dominio hablan con `Diario` (Dart puro, sin widgets):
