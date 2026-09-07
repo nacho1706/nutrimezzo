@@ -73,6 +73,42 @@ void main() {
     expect(propuestas.single.macrosPor100g.kcal, 97);
   });
 
+  test(
+    'un Renglón sin g envía la línea y pide gramos_asumidos del total, no unidades',
+    () async {
+      String? cuerpo;
+      const contrato =
+          '{"propuestas":[{"nombre":"Huevo","kcal_por_100g":155,"proteina_g_por_100g":13,"carbos_g_por_100g":1.1,"grasa_g_por_100g":11,"gramos_asumidos":110}]}';
+      final puerto = BusquedaIAOpenAI(
+        byok: () => _byokEjemplo,
+        post: (destino, {Map<String, String>? headers, Object? body}) async {
+          cuerpo = body as String?;
+          return http.Response(
+            jsonEncode({
+              'choices': [
+                {
+                  'message': {'content': contrato},
+                },
+              ],
+            }),
+            200,
+          );
+        },
+      );
+
+      final propuestas = await puerto.buscar(const Renglon(nombre: '2 huevos'));
+
+      final pedido = jsonDecode(cuerpo!) as Map<String, dynamic>;
+      final mensajes = pedido['messages'] as List<dynamic>;
+      expect(mensajes[1]['content'], '2 huevos');
+      expect(mensajes[1]['content'], isNot(contains('110g')));
+      expect(mensajes[0]['content'], contains('gramos_asumidos'));
+      expect(mensajes[0]['content'], contains('2 huevos'));
+      expect(mensajes[0]['content'], contains('total grams'));
+      expect(propuestas.single.gramosAsumidos, 110);
+    },
+  );
+
   test('BYOK en blanco no llama a la red y no inventa Propuestas', () async {
     var envios = 0;
     final puerto = BusquedaIAOpenAI(
@@ -103,6 +139,60 @@ void main() {
       () => puerto.buscar(const Renglon(nombre: 'kiwi')),
       throwsA(isA<StateError>()),
     );
+  });
+
+  test('un 429 se reintenta y sigue siendo Propuesta', () async {
+    var envios = 0;
+    final esperas = <Duration>[];
+    const contrato =
+        '{"propuestas":[{"nombre":"Huevos","kcal_por_100g":155,"proteina_g_por_100g":13,"carbos_g_por_100g":1.1,"grasa_g_por_100g":11,"gramos_asumidos":100}]}';
+    final puerto = BusquedaIAOpenAI(
+      byok: () => _byokEjemplo,
+      esperar: (duracion) async {
+        esperas.add(duracion);
+      },
+      post: (destino, {Map<String, String>? headers, Object? body}) async {
+        envios += 1;
+        if (envios == 1) {
+          return http.Response('{"error":"rate"}', 429);
+        }
+        return http.Response(
+          jsonEncode({
+            'choices': [
+              {
+                'message': {'content': contrato},
+              },
+            ],
+          }),
+          200,
+        );
+      },
+    );
+
+    final propuestas = await puerto.buscar(const Renglon(nombre: 'huevos'));
+
+    expect(envios, 2);
+    expect(esperas, [const Duration(seconds: 2)]);
+    expect(propuestas.single.nombre, 'Huevos');
+    expect(propuestas.single.macrosPor100g.kcal, 155);
+  });
+
+  test('agotados los 429 el puerto falla y no inventa macros', () async {
+    var envios = 0;
+    final puerto = BusquedaIAOpenAI(
+      byok: () => _byokEjemplo,
+      esperar: (_) async {},
+      post: (destino, {Map<String, String>? headers, Object? body}) async {
+        envios += 1;
+        return http.Response('rate', 429);
+      },
+    );
+
+    await expectLater(
+      puerto.buscar(const Renglon(nombre: 'queso dambo')),
+      throwsA(isA<StateError>()),
+    );
+    expect(envios, 3);
   });
 
   test('contenido vacío es fallo del puerto', () async {

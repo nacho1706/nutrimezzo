@@ -186,6 +186,130 @@ void main() {
     expect(diario.hoy().comidas.single.renglones.single.cantidad, 90);
     expect(diario.alimentos.single.nombre, 'Banana');
   });
+
+  testWidgets(
+    'la Propuesta muestra macros / 100 g y los de la Cantidad',
+    (tester) async {
+      desactivarAnimaciones(tester);
+      final diario = Diario();
+      await diario.crearAlimento(
+        nombre: 'jamon cocido',
+        macrosPor100g: const Macros(
+          kcal: 145,
+          proteina: 21,
+          carbos: 1.5,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.almuerzo,
+        notas: '30g jamon cocido',
+      );
+      await diario.listo();
+      await tester.pumpWidget(
+        MaterialApp(home: ConfirmacionComida(diario: diario)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('145 kcal / 100 g · P 21 · C 1.5 · F 5'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('43.5 kcal / 30 g · P 6.3 · C 0.45 · F 1.5'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'cambiar Gramos actualiza los macros de la Cantidad en la Propuesta',
+    (tester) async {
+      desactivarAnimaciones(tester);
+      final diario = Diario();
+      await diario.crearAlimento(
+        nombre: 'jamon cocido',
+        macrosPor100g: const Macros(
+          kcal: 145,
+          proteina: 21,
+          carbos: 1.5,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.almuerzo,
+        notas: '30g jamon cocido',
+      );
+      await diario.listo();
+      await tester.pumpWidget(
+        MaterialApp(home: ConfirmacionComida(diario: diario)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Gramos'), '50');
+      await tester.pump();
+
+      expect(
+        find.textContaining('145 kcal / 100 g · P 21 · C 1.5 · F 5'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('72.5 kcal / 50 g · P 10.5 · C 0.75 · F 2.5'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('43.5 kcal / 30 g'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'crear Alimento muestra los macros de la Cantidad y se actualizan al editar',
+    (tester) async {
+      desactivarAnimaciones(tester);
+      final diario = Diario();
+      diario.redactarComida(momento: Momento.extra, notas: 'banana chica');
+      await diario.listo();
+      await tester.pumpWidget(
+        MaterialApp(home: ConfirmacionComida(diario: diario)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Crear Alimento'), findsOneWidget);
+      expect(find.textContaining('kcal / 110 g'), findsNothing);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Calorías'),
+        '89',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Proteína (P)'),
+        '1',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Carbos (C)'),
+        '23',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Grasa (F)'),
+        '0.3',
+      );
+      await tester.enterText(find.widgetWithText(TextFormField, 'Gramos'), '110');
+      await tester.pump();
+
+      expect(
+        find.textContaining('97.9 kcal / 110 g · P 1.1 · C 25.3 · F 0.33'),
+        findsOneWidget,
+      );
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Gramos'), '50');
+      await tester.pump();
+
+      expect(
+        find.textContaining('44.5 kcal / 50 g · P 0.5 · C 11.5 · F 0.15'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('97.9 kcal / 110 g'), findsNothing);
+    },
+  );
 }
 
 class _PuertoBusquedaIAFalso implements PuertoBusquedaIA {

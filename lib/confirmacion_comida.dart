@@ -24,14 +24,30 @@ class _ConfirmacionComidaState extends State<ConfirmacionComida> {
       for (final resuelto in widget.diario.resoluciones)
         _FilaConfirmacion(resuelto),
     ];
+    for (final fila in _filas) {
+      fila.gramos.addListener(_alCambiarFila);
+      fila.kcal.addListener(_alCambiarFila);
+      fila.proteina.addListener(_alCambiarFila);
+      fila.carbos.addListener(_alCambiarFila);
+      fila.grasa.addListener(_alCambiarFila);
+    }
   }
 
   @override
   void dispose() {
     for (final fila in _filas) {
+      fila.gramos.removeListener(_alCambiarFila);
+      fila.kcal.removeListener(_alCambiarFila);
+      fila.proteina.removeListener(_alCambiarFila);
+      fila.carbos.removeListener(_alCambiarFila);
+      fila.grasa.removeListener(_alCambiarFila);
       fila.dispose();
     }
     super.dispose();
+  }
+
+  void _alCambiarFila() {
+    setState(() {});
   }
 
   @override
@@ -118,6 +134,31 @@ class _FilaConfirmacion {
   final TextEditingController carbos;
   final TextEditingController grasa;
 
+  Macros? get macrosPor100gCreados {
+    final kcalValor = _parsearNumero(kcal.text);
+    final proteinaValor = _parsearNumero(proteina.text);
+    final carbosValor = _parsearNumero(carbos.text);
+    final grasaValor = _parsearNumero(grasa.text);
+    if (kcalValor == null ||
+        proteinaValor == null ||
+        carbosValor == null ||
+        grasaValor == null) {
+      return null;
+    }
+    if (kcalValor < 0 ||
+        proteinaValor < 0 ||
+        carbosValor < 0 ||
+        grasaValor < 0) {
+      return null;
+    }
+    return Macros(
+      kcal: kcalValor,
+      proteina: proteinaValor,
+      carbos: carbosValor,
+      grasa: grasaValor,
+    );
+  }
+
   void dispose() {
     gramos.dispose();
     nombre.dispose();
@@ -159,6 +200,10 @@ class _RenglonConfirmacion extends StatelessWidget {
     final theme = Theme.of(context);
     final resuelto = fila.resuelto;
     final sinCantidad = resuelto.renglon.cantidad == null;
+    final macrosCreados = _detalleMacrosPorCantidad(
+      fila.macrosPor100gCreados,
+      fila.gramos.text,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -229,6 +274,10 @@ class _RenglonConfirmacion extends StatelessWidget {
             ),
             validator: _validarMacro,
           ),
+          if (macrosCreados != null) ...[
+            const SizedBox(height: 12),
+            Text(macrosCreados, style: theme.textTheme.bodyMedium),
+          ],
         ] else
           RadioGroup<int>(
             groupValue: fila.elegida,
@@ -243,7 +292,17 @@ class _RenglonConfirmacion extends StatelessWidget {
                   RadioListTile<int>(
                     contentPadding: EdgeInsets.zero,
                     title: Text(resuelto.propuestas[i].nombre),
-                    subtitle: Text(_detallePropuesta(resuelto.propuestas[i])),
+                    subtitle: Text(
+                      _detallePropuesta(
+                        resuelto.propuestas[i],
+                        fila.gramos.text,
+                      ),
+                    ),
+                    isThreeLine: _detalleMacrosPorCantidad(
+                          resuelto.propuestas[i].macrosPor100g,
+                          fila.gramos.text,
+                        ) !=
+                        null,
                     value: i,
                   ),
               ],
@@ -261,9 +320,31 @@ String _textoNumeroOVacio(num? valor) {
   return _textoNumero(valor);
 }
 
-String _detallePropuesta(Propuesta propuesta) {
-  final macros = propuesta.macrosPor100g;
-  return '${_textoNumero(macros.kcal)} kcal / 100 g · '
+String _detallePropuesta(Propuesta propuesta, String gramosTexto) {
+  final por100g = _detalleMacros(propuesta.macrosPor100g, 100);
+  final porCantidad = _detalleMacrosPorCantidad(
+    propuesta.macrosPor100g,
+    gramosTexto,
+  );
+  if (porCantidad == null) {
+    return por100g;
+  }
+  return '$por100g\n$porCantidad';
+}
+
+String? _detalleMacrosPorCantidad(Macros? macrosPor100g, String gramosTexto) {
+  if (macrosPor100g == null) {
+    return null;
+  }
+  final gramos = _parsearNumero(gramosTexto);
+  if (gramos == null || gramos <= 0) {
+    return null;
+  }
+  return _detalleMacros(macrosPor100g.paraGramos(gramos), gramos);
+}
+
+String _detalleMacros(Macros macros, num gramos) {
+  return '${_textoNumero(macros.kcal)} kcal / ${_textoNumero(gramos)} g · '
       'P ${_textoNumero(macros.proteina)} · '
       'C ${_textoNumero(macros.carbos)} · '
       'F ${_textoNumero(macros.grasa)}';

@@ -16,16 +16,25 @@ class BusquedaIAOpenAI implements PuertoBusquedaIA {
     required Byok Function() byok,
     PostChat? post,
     Duration timeout = const Duration(seconds: 20),
+    Duration espera429 = const Duration(seconds: 2),
+    int reintentos429 = 2,
+    Future<void> Function(Duration duracion)? esperar,
   }) : // Public names; the fields stay private.
        // ignore: prefer_initializing_formals
        _byok = byok,
        _post = post ?? _postPorDefecto,
        // ignore: prefer_initializing_formals
-       _timeout = timeout;
+       _timeout = timeout,
+       _espera429 = espera429,
+       _reintentos429 = reintentos429,
+       _esperar = esperar ?? Future<void>.delayed;
 
   final Byok Function() _byok;
   final PostChat _post;
   final Duration _timeout;
+  final Duration _espera429;
+  final int _reintentos429;
+  final Future<void> Function(Duration duracion) _esperar;
 
   @override
   Future<List<Propuesta>> buscar(Renglon renglon) async {
@@ -37,20 +46,31 @@ class BusquedaIAOpenAI implements PuertoBusquedaIA {
       return const [];
     }
     final url = Uri.parse('${_urlBase(urlBase)}/chat/completions');
-    final respuesta = await _post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $claveApi',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'model': idModelo,
-        'messages': [
-          {'role': 'system', 'content': _instrucciones},
-          {'role': 'user', 'content': _textoRenglon(renglon)},
-        ],
-      }),
-    ).timeout(_timeout);
+    final cuerpo = jsonEncode({
+      'model': idModelo,
+      'messages': [
+        {'role': 'system', 'content': _instrucciones},
+        {'role': 'user', 'content': _textoRenglon(renglon)},
+      ],
+    });
+    final headers = {
+      'Authorization': 'Bearer $claveApi',
+      'Content-Type': 'application/json',
+    };
+    var restantes = _reintentos429;
+    late http.Response respuesta;
+    while (true) {
+      respuesta = await _post(
+        url,
+        headers: headers,
+        body: cuerpo,
+      ).timeout(_timeout);
+      if (respuesta.statusCode != 429 || restantes == 0) {
+        break;
+      }
+      restantes--;
+      await _esperar(_espera429);
+    }
     if (respuesta.statusCode < 200 || respuesta.statusCode >= 300) {
       throw StateError('http ${respuesta.statusCode}');
     }
@@ -101,7 +121,7 @@ String _textoRenglon(Renglon renglon) {
 const _instrucciones = '''
 You fill a calorie-tracker JSON contract. Reply with a single JSON object, no other text:
 {"propuestas":[{"nombre":"string","kcal_por_100g":0,"proteina_g_por_100g":0,"carbos_g_por_100g":0,"grasa_g_por_100g":0,"gramos_asumidos":null}]}
-Rules: at most two propuestas; macros are per 100 g; numbers must be JSON numbers >= 0; gramos_asumidos is a number > 0 when the line has no grams, otherwise null.
+Rules: at most two propuestas; macros are per 100 g; numbers must be JSON numbers >= 0; gramos_asumidos is a number > 0 when the line has no grams (counts or sizes such as "2 huevos" or "banana chica": estimate total grams for that whole line), otherwise null.
 ''';
 
 Future<http.Response> _postPorDefecto(
