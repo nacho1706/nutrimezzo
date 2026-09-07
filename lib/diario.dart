@@ -476,12 +476,26 @@ class Diario {
     required DateTime fecha,
     required Momento momento,
   }) {
+    return comidaDe(fecha: fecha, momento: momento)?.renglones ?? const [];
+  }
+
+  Comida? comidaDe({required DateTime fecha, required Momento momento}) {
     final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
     final indice = _indiceComidaEn(fechaDia, momento);
     if (indice == null) {
-      return const [];
+      return null;
     }
-    return _comidas[indice].renglones;
+    return _comidas[indice];
+  }
+
+  Macros macrosDe(Renglon renglon) {
+    final id = renglon.alimentoId;
+    final cantidad = renglon.cantidad;
+    if (id == null || cantidad == null) {
+      return Macros.cero;
+    }
+    final alimento = _alimentos.firstWhere((candidato) => candidato.id == id);
+    return alimento.macrosPor100g.paraGramos(cantidad);
   }
 
   Meta get meta => _meta;

@@ -17,6 +17,7 @@ class HomeDia extends StatefulWidget {
 
 class _HomeDiaState extends State<HomeDia> {
   late DateTime _fecha;
+  String? _renglonAbierto;
 
   @override
   void initState() {
@@ -150,30 +151,23 @@ class _HomeDiaState extends State<HomeDia> {
 
   void _diaAnterior() {
     setState(() {
+      _renglonAbierto = null;
       _fecha = DateTime(_fecha.year, _fecha.month, _fecha.day - 1);
     });
   }
 
   void _diaSiguiente() {
     setState(() {
+      _renglonAbierto = null;
       _fecha = DateTime(_fecha.year, _fecha.month, _fecha.day + 1);
     });
   }
 
-  Future<void> _abrirRenglon(Comida comida, int indice) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => _EditarRenglon(
-          diario: widget.diario,
-          comidaId: comida.id,
-          indice: indice,
-          renglon: comida.renglones[indice],
-        ),
-      ),
-    );
-    if (mounted) {
-      setState(() {});
-    }
+  void _alternarRenglon(Comida comida, int indice) {
+    setState(() {
+      final clave = '${comida.id}:$indice';
+      _renglonAbierto = _renglonAbierto == clave ? null : clave;
+    });
   }
 
   Future<void> _menuComida(Comida comida, String valor) async {
@@ -223,7 +217,7 @@ class _HomeDiaState extends State<HomeDia> {
             ),
           ],
         ),
-        for (var i = 0; i < comida.renglones.length; i++)
+        for (var i = 0; i < comida.renglones.length; i++) ...[
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(comida.renglones[i].nombre),
@@ -233,8 +227,17 @@ class _HomeDiaState extends State<HomeDia> {
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
-            onTap: () => _abrirRenglon(comida, i),
+            onTap: () => _alternarRenglon(comida, i),
           ),
+          if (_renglonAbierto == '${comida.id}:$i')
+            entradaRenglon(
+              context,
+              _MacrosDeRenglon(
+                macros: widget.diario.macrosDe(comida.renglones[i]),
+              ),
+              key: ValueKey('macros-${comida.id}-$i'),
+            ),
+        ],
       ],
     ];
   }
@@ -335,151 +338,52 @@ String _fechaEnEspanol(DateTime fecha) {
 
 String _entero(num valor) => valor.round().toString();
 
-class _EditarRenglon extends StatefulWidget {
-  const _EditarRenglon({
-    required this.diario,
-    required this.comidaId,
-    required this.indice,
-    required this.renglon,
-  });
+class _MacrosDeRenglon extends StatelessWidget {
+  const _MacrosDeRenglon({required this.macros});
 
-  final Diario diario;
-  final String comidaId;
-  final int indice;
-  final Renglon renglon;
-
-  @override
-  State<_EditarRenglon> createState() => _EditarRenglonState();
-}
-
-class _EditarRenglonState extends State<_EditarRenglon> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _cantidad;
-  late String? _alimentoId;
-  var _guardando = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _cantidad = TextEditingController(
-      text: _textoCantidad(widget.renglon.cantidad ?? 0),
-    );
-    _alimentoId = widget.renglon.alimentoId;
-  }
-
-  @override
-  void dispose() {
-    _cantidad.dispose();
-    super.dispose();
-  }
+  final Macros macros;
 
   @override
   Widget build(BuildContext context) {
-    final alimentos = widget.diario.alimentos;
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.renglon.nombre)),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          children: [
-            TextFormField(
-              controller: _cantidad,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Cantidad',
-                suffixText: 'g',
-              ),
-              validator: (valor) {
-                final numero = _parsearCantidad(valor ?? '');
-                if (numero == null || numero <= 0) {
-                  return 'Indicá gramos mayores a 0';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _alimentoId,
-              decoration: const InputDecoration(labelText: 'Alimento'),
-              items: [
-                for (final alimento in alimentos)
-                  DropdownMenuItem(
-                    value: alimento.id,
-                    child: Text(alimento.nombre),
-                  ),
-              ],
-              onChanged: (valor) => setState(() => _alimentoId = valor),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _guardando ? null : _guardar,
-              child: const Text('Guardar'),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: _guardando ? null : _borrar,
-              child: const Text('Borrar Renglón'),
-            ),
-          ],
-        ),
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        children: [
+          _lineaMacro(theme, 'Calorías', '${_textoNumero(macros.kcal)} kcal'),
+          _lineaMacro(
+            theme,
+            'Proteína (P)',
+            '${_textoNumero(macros.proteina)} g',
+          ),
+          _lineaMacro(theme, 'Carbos (C)', '${_textoNumero(macros.carbos)} g'),
+          _lineaMacro(theme, 'Grasa (F)', '${_textoNumero(macros.grasa)} g'),
+        ],
       ),
     );
   }
-
-  Future<void> _guardar() async {
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      return;
-    }
-    setState(() => _guardando = true);
-    try {
-      await widget.diario.editarRenglon(
-        comidaId: widget.comidaId,
-        indice: widget.indice,
-        cantidad: _parsearCantidad(_cantidad.text),
-        alimentoId: _alimentoId,
-      );
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _guardando = false);
-      }
-    }
-  }
-
-  Future<void> _borrar() async {
-    setState(() => _guardando = true);
-    try {
-      await widget.diario.eliminarRenglon(
-        comidaId: widget.comidaId,
-        indice: widget.indice,
-      );
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _guardando = false);
-      }
-    }
-  }
 }
 
-String _textoCantidad(num valor) {
+Widget _lineaMacro(ThemeData theme, String etiqueta, String valor) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      children: [
+        Expanded(child: Text(etiqueta, style: theme.textTheme.bodyMedium)),
+        Text(
+          valor,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+String _textoNumero(num valor) {
   if (valor == valor.roundToDouble()) {
     return valor.round().toString();
   }
   return valor.toString();
-}
-
-num? _parsearCantidad(String texto) {
-  final limpio = texto.trim().replaceAll(',', '.');
-  if (limpio.isEmpty) {
-    return null;
-  }
-  return num.tryParse(limpio);
 }
