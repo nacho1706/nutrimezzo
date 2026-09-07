@@ -102,6 +102,48 @@ void main() {
   );
 
   test(
+    'el Momento que último recibió Renglones se lee al reabrir el almacén',
+    () async {
+      var ahora = DateTime(2026, 9, 6, 8);
+      final primero = await abrirDiario(ahora: () => ahora);
+      await primero.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      primero.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+      await primero.listo();
+      await primero.confirmar([
+        EleccionRenglon(
+          cantidad: 100,
+          propuesta: primero.resoluciones.single.propuestas.single,
+        ),
+      ]);
+      ahora = DateTime(2026, 9, 6, 9);
+      primero.redactarComida(momento: Momento.extra, notas: '30g yogur griego');
+      await primero.listo();
+      await primero.confirmar([
+        EleccionRenglon(
+          cantidad: 30,
+          propuesta: primero.resoluciones.single.propuestas.single,
+        ),
+      ]);
+
+      final reabierto = await abrirDiario(
+        ahora: () => DateTime(2026, 9, 6, 10),
+      );
+      expect(reabierto.momentoDeCaptura(DateTime(2026, 9, 6)), Momento.extra);
+    },
+  );
+
+  test(
     'editar un Alimento persiste y el Día reabierto usa los macros nuevos',
     () async {
       final primero = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));

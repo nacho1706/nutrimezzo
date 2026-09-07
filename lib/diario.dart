@@ -41,6 +41,7 @@ class Diario {
       }
       _comidas[i] = comida.copiaCon(id: 'c${++_siguienteComidaId}');
     }
+    _unificarComidas();
   }
 
   final DateTime Function() _ahora;
@@ -166,7 +167,11 @@ class Diario {
 
   Future<void> listo() async {
     final renglones = _borrador?.renglones ?? const <Renglon>[];
-    _resoluciones = await Future.wait(renglones.map(_resolver));
+    final resoluciones = <RenglonResuelto>[];
+    for (final renglon in renglones) {
+      resoluciones.add(await _resolver(renglon));
+    }
+    _resoluciones = resoluciones;
   }
 
   Future<RenglonResuelto> _resolver(Renglon renglon) async {
@@ -267,14 +272,24 @@ class Diario {
     final ahora = _ahora();
     final fecha =
         borrador.fecha ?? DateTime(ahora.year, ahora.month, ahora.day);
-    _comidas.add(
-      Comida(
-        id: 'c${++_siguienteComidaId}',
-        momento: borrador.momento,
+    final indiceExistente = _indiceComidaEn(fecha, borrador.momento);
+    if (indiceExistente == null) {
+      _comidas.add(
+        Comida(
+          id: 'c${++_siguienteComidaId}',
+          momento: borrador.momento,
+          renglones: renglones,
+          fecha: fecha,
+          recibidoPorUltimaVez: ahora,
+        ),
+      );
+    } else {
+      _anexarRenglones(
+        indiceExistente,
         renglones: renglones,
-        fecha: fecha,
-      ),
-    );
+        recibidoPorUltimaVez: ahora,
+      );
+    }
     cancelarBorrador();
     await _escribirDiario();
   }
@@ -342,7 +357,27 @@ class Diario {
   Future<void> cambiarMomento(String comidaId, Momento momento) async {
     final indiceComida = _indiceComida(comidaId);
     final comida = _comidas[indiceComida];
-    _comidas[indiceComida] = comida.copiaCon(momento: momento);
+    if (comida.momento == momento) {
+      return;
+    }
+    final fecha = comida.fecha;
+    final indiceDestino = fecha == null
+        ? null
+        : _indiceComidaEn(fecha, momento);
+    if (indiceDestino == null) {
+      _comidas[indiceComida] = comida.copiaCon(momento: momento);
+    } else {
+      final destino = _comidas[indiceDestino];
+      _anexarRenglones(
+        indiceDestino,
+        renglones: comida.renglones,
+        recibidoPorUltimaVez: _elMasTarde(
+          destino.recibidoPorUltimaVez,
+          comida.recibidoPorUltimaVez,
+        ),
+      );
+      _comidas.removeAt(indiceComida);
+    }
     await _escribirDiario();
   }
 
@@ -421,6 +456,34 @@ class Diario {
     return Dia(fecha: fechaDia, macros: macros, comidas: comidas);
   }
 
+  Momento momentoDeCaptura(DateTime fecha) {
+    final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
+    Comida? elegida;
+    for (final comida in _comidas) {
+      if (comida.fecha != fechaDia) {
+        continue;
+      }
+      if (elegida == null) {
+        elegida = comida;
+        continue;
+      }
+      elegida = _masReciente(elegida, comida);
+    }
+    return elegida?.momento ?? Momento.desayuno;
+  }
+
+  List<Renglon> renglonesDe({
+    required DateTime fecha,
+    required Momento momento,
+  }) {
+    final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
+    final indice = _indiceComidaEn(fechaDia, momento);
+    if (indice == null) {
+      return const [];
+    }
+    return _comidas[indice].renglones;
+  }
+
   Meta get meta => _meta;
 
   Byok get byok => _byok;
@@ -453,6 +516,78 @@ class Diario {
     }
     return indice;
   }
+
+  int? _indiceComidaEn(DateTime fecha, Momento momento) {
+    final indice = _comidas.indexWhere(
+      (comida) => comida.fecha == fecha && comida.momento == momento,
+    );
+    if (indice < 0) {
+      return null;
+    }
+    return indice;
+  }
+
+  void _anexarRenglones(
+    int indice, {
+    required List<Renglon> renglones,
+    DateTime? recibidoPorUltimaVez,
+  }) {
+    final comida = _comidas[indice];
+    _comidas[indice] = comida.copiaCon(
+      renglones: [...comida.renglones, ...renglones],
+      recibidoPorUltimaVez: recibidoPorUltimaVez,
+    );
+  }
+
+  void _unificarComidas() {
+    final unidas = <Comida>[];
+    final indicePorClave = <String, int>{};
+    for (final comida in _comidas) {
+      final clave = '${comida.fecha}-${comida.momento.name}';
+      final indice = indicePorClave[clave];
+      if (indice == null) {
+        indicePorClave[clave] = unidas.length;
+        unidas.add(comida);
+        continue;
+      }
+      final previa = unidas[indice];
+      unidas[indice] = previa.copiaCon(
+        renglones: [...previa.renglones, ...comida.renglones],
+        recibidoPorUltimaVez: _elMasTarde(
+          previa.recibidoPorUltimaVez,
+          comida.recibidoPorUltimaVez,
+        ),
+      );
+    }
+    _comidas
+      ..clear()
+      ..addAll(unidas);
+  }
+}
+
+DateTime? _elMasTarde(DateTime? a, DateTime? b) {
+  if (a == null) {
+    return b;
+  }
+  if (b == null) {
+    return a;
+  }
+  return b.isAfter(a) ? b : a;
+}
+
+Comida _masReciente(Comida a, Comida b) {
+  final ta = a.recibidoPorUltimaVez;
+  final tb = b.recibidoPorUltimaVez;
+  if (ta == null && tb == null) {
+    return b;
+  }
+  if (ta == null) {
+    return b;
+  }
+  if (tb == null) {
+    return a;
+  }
+  return tb.isAfter(ta) ? b : a;
 }
 
 int _numeroDeId(String id) {
@@ -616,24 +751,28 @@ class Comida {
     required this.renglones,
     this.fecha,
     this.id = '',
+    this.recibidoPorUltimaVez,
   });
 
   final String id;
   final Momento momento;
   final List<Renglon> renglones;
   final DateTime? fecha;
+  final DateTime? recibidoPorUltimaVez;
 
   Comida copiaCon({
     String? id,
     Momento? momento,
     DateTime? fecha,
     List<Renglon>? renglones,
+    DateTime? recibidoPorUltimaVez,
   }) {
     return Comida(
       id: id ?? this.id,
       momento: momento ?? this.momento,
       fecha: fecha ?? this.fecha,
       renglones: renglones ?? this.renglones,
+      recibidoPorUltimaVez: recibidoPorUltimaVez ?? this.recibidoPorUltimaVez,
     );
   }
 }

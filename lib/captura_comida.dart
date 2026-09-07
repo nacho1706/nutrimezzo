@@ -15,12 +15,21 @@ class CapturaComida extends StatefulWidget {
 
 class _CapturaComidaState extends State<CapturaComida> {
   final _notas = TextEditingController();
-  Momento _momento = Momento.desayuno;
+  late Momento _momento;
   var _esperandoListo = false;
+
+  DateTime get _fecha {
+    return widget.fecha ?? widget.diario.hoy().fecha;
+  }
+
+  List<Renglon> get _renglonesPrevios {
+    return widget.diario.renglonesDe(fecha: _fecha, momento: _momento);
+  }
 
   @override
   void initState() {
     super.initState();
+    _momento = widget.diario.momentoDeCaptura(_fecha);
     widget.diario.redactarComida(
       momento: _momento,
       notas: _notas.text,
@@ -94,7 +103,7 @@ class _CapturaComidaState extends State<CapturaComida> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Nueva comida'),
+          title: Text(_momento.etiqueta),
           leading: IconButton(
             icon: const Icon(Icons.close),
             tooltip: 'Cancelar',
@@ -126,6 +135,18 @@ class _CapturaComidaState extends State<CapturaComida> {
               ],
             ),
             const SizedBox(height: 24),
+            for (final renglon in _renglonesPrevios)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(_tituloRenglon(renglon)),
+                trailing: Text(
+                  _cantidadRenglon(renglon),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            if (_renglonesPrevios.isNotEmpty) const SizedBox(height: 16),
             TextField(
               controller: _notas,
               autofocus: true,

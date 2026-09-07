@@ -322,4 +322,55 @@ void main() {
     expect(find.text('Hoy'), findsNothing);
     expect(find.text('97 / 2000 kcal'), findsOneWidget);
   });
+
+  testWidgets(
+    'Hoy con dos Comidas guardadas del mismo Momento muestra un solo encabezado',
+    (tester) async {
+      desactivarAnimaciones(tester);
+      const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
+      final yogur = Alimento(
+        id: 'a1',
+        nombre: 'yogur griego',
+        macrosPor100g: macros,
+        patron: 'yogur griego',
+        usadoPorUltimaVez: DateTime(2026, 9, 6, 8),
+      );
+      final diario = Diario(
+        ahora: () => DateTime(2026, 9, 6, 8),
+        alimentos: [yogur],
+        comidas: [
+          Comida(
+            id: 'c1',
+            momento: Momento.desayuno,
+            fecha: DateTime(2026, 9, 6),
+            renglones: [
+              Renglon(
+                nombre: 'yogur griego',
+                cantidad: 100,
+                alimentoId: yogur.id,
+              ),
+            ],
+          ),
+          Comida(
+            id: 'c2',
+            momento: Momento.desayuno,
+            fecha: DateTime(2026, 9, 6),
+            renglones: [
+              Renglon(
+                nombre: 'yogur griego',
+                cantidad: 30,
+                alimentoId: yogur.id,
+              ),
+            ],
+          ),
+        ],
+      );
+      await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+      expect(find.text('Desayuno'), findsOneWidget);
+      expect(find.text('100 g'), findsOneWidget);
+      expect(find.text('30 g'), findsOneWidget);
+      expect(find.text('126 / 2000 kcal'), findsOneWidget);
+    },
+  );
 }

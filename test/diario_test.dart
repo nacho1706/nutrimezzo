@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrimezzo/diario.dart';
 
@@ -206,6 +208,18 @@ void main() {
     expect(renglon.cantidad, isNull);
     expect(renglon.nombre, 'banana chica');
   });
+
+  test(
+    '2 huevos no parsea 2 g: el nombre es la línea y Cantidad queda vacía',
+    () {
+      final diario = Diario();
+      diario.redactarComida(momento: Momento.desayuno, notas: '2 huevos');
+
+      final renglon = diario.borrador!.renglones.single;
+      expect(renglon.cantidad, isNull);
+      expect(renglon.nombre, '2 huevos');
+    },
+  );
 
   test('Enter parte las notas en un Renglón por línea', () {
     final diario = Diario();
@@ -807,6 +821,43 @@ void main() {
   });
 
   test(
+    'Listo espera la IA de un Renglón antes de pedir el siguiente',
+    () async {
+      final alEntrarPrimero = Completer<void>();
+      final liberarPrimero = Completer<void>();
+      final alEntrarSegundo = Completer<void>();
+      var indice = 0;
+      final diario = Diario(
+        busquedaIA: _PuertoBusquedaIAEnOrden(
+          alBuscar: () async {
+            final actual = indice++;
+            if (actual == 0) {
+              alEntrarPrimero.complete();
+              await liberarPrimero.future;
+            } else {
+              alEntrarSegundo.complete();
+            }
+          },
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.almuerzo,
+        notas: '30g queso dambo\n40g jamon cocido',
+      );
+
+      final listo = diario.listo();
+      await alEntrarPrimero.future;
+      expect(alEntrarSegundo.isCompleted, isFalse);
+
+      liberarPrimero.complete();
+      await listo;
+
+      expect(alEntrarSegundo.isCompleted, isTrue);
+      expect(diario.resoluciones, hasLength(2));
+    },
+  );
+
+  test(
     'un puerto roto no bloquea el Renglón local y el sin match ofrece crear',
     () async {
       final diario = Diario(busquedaIA: _PuertoBusquedaIARoto());
@@ -1348,6 +1399,59 @@ void main() {
     expect(diario.hoy().macros.kcal, 97);
   });
 
+  test(
+    'cambiarMomento a un Momento ocupado une las Comidas con destino primero',
+    () async {
+      final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+      await diario.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+      await diario.listo();
+      await diario.confirmar([
+        EleccionRenglon(
+          cantidad: 100,
+          propuesta: diario.resoluciones.single.propuestas.single,
+        ),
+      ]);
+      diario.redactarComida(
+        momento: Momento.almuerzo,
+        notas: '200g yogur griego',
+      );
+      await diario.listo();
+      await diario.confirmar([
+        EleccionRenglon(
+          cantidad: 200,
+          propuesta: diario.resoluciones.single.propuestas.single,
+        ),
+      ]);
+      final destino = diario.hoy().comidas.first;
+      final origen = diario.hoy().comidas.last;
+      expect(destino.momento, Momento.desayuno);
+      expect(origen.momento, Momento.almuerzo);
+
+      await diario.cambiarMomento(origen.id, Momento.desayuno);
+
+      final dia = diario.hoy();
+      expect(dia.comidas, hasLength(1));
+      expect(dia.comidas.single.id, destino.id);
+      expect(dia.comidas.single.momento, Momento.desayuno);
+      expect(dia.comidas.single.renglones, hasLength(2));
+      expect(dia.comidas.single.renglones[0].cantidad, 100);
+      expect(dia.comidas.single.renglones[1].cantidad, 200);
+      expect(dia.macros.kcal, 291);
+    },
+  );
+
   test('borrar un Alimento lo saca del catálogo y baja los totales', () async {
     final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
     final yogur = await diario.crearAlimento(
@@ -1445,6 +1549,51 @@ void main() {
     },
   );
 
+  test('abrir un Diario con dos Comidas del mismo fecha y Momento las une en el orden registrado', () {
+    const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
+    final yogur = Alimento(
+      id: 'a1',
+      nombre: 'yogur griego',
+      macrosPor100g: macros,
+      patron: 'yogur griego',
+      usadoPorUltimaVez: DateTime(2026, 9, 6, 8),
+    );
+    final diario = Diario(
+      ahora: () => DateTime(2026, 9, 6, 8),
+      alimentos: [yogur],
+      comidas: [
+        Comida(
+          id: 'c1',
+          momento: Momento.desayuno,
+          fecha: DateTime(2026, 9, 6),
+          renglones: [
+            Renglon(
+              nombre: 'yogur griego',
+              cantidad: 100,
+              alimentoId: yogur.id,
+            ),
+          ],
+        ),
+        Comida(
+          id: 'c2',
+          momento: Momento.desayuno,
+          fecha: DateTime(2026, 9, 6),
+          renglones: [
+            Renglon(nombre: 'yogur griego', cantidad: 30, alimentoId: yogur.id),
+          ],
+        ),
+      ],
+    );
+
+    final dia = diario.hoy();
+    expect(dia.comidas, hasLength(1));
+    expect(dia.comidas.single.id, 'c1');
+    expect(dia.comidas.single.renglones, hasLength(2));
+    expect(dia.comidas.single.renglones[0].cantidad, 100);
+    expect(dia.comidas.single.renglones[1].cantidad, 30);
+    expect(dia.macros.kcal, 126.1);
+  });
+
   test('una Comida cargada sin id se puede editar', () async {
     const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
     final yogur = Alimento(
@@ -1483,6 +1632,102 @@ void main() {
     expect(diario.hoy().macros.kcal, 194);
   });
 
+  test('confirmar Desayuno dos veces en el mismo Día deja una Comida y concatena Renglones', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.crearAlimento(
+      nombre: 'yogur griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g yogur griego',
+    );
+    await diario.listo();
+    await diario.confirmar([
+      EleccionRenglon(
+        cantidad: 100,
+        propuesta: diario.resoluciones.single.propuestas.single,
+      ),
+    ]);
+    final id = diario.hoy().comidas.single.id;
+
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '200g yogur griego',
+    );
+    await diario.listo();
+    await diario.confirmar([
+      EleccionRenglon(
+        cantidad: 200,
+        propuesta: diario.resoluciones.single.propuestas.single,
+      ),
+    ]);
+
+    final dia = diario.hoy();
+    expect(dia.comidas, hasLength(1));
+    expect(dia.comidas.single.momento, Momento.desayuno);
+    expect(dia.comidas.single.id, id);
+    expect(dia.comidas.single.renglones, hasLength(2));
+    expect(dia.comidas.single.renglones[0].cantidad, 100);
+    expect(dia.comidas.single.renglones[1].cantidad, 200);
+    expect(dia.macros.kcal, 291);
+  });
+
+  test(
+    'confirmar sobre un Momento ocupado de un Día pasado une esa fecha, no Hoy',
+    () async {
+      var ahora = DateTime(2026, 9, 5, 8);
+      final diario = Diario(ahora: () => ahora);
+      await diario.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+      await diario.listo();
+      await diario.confirmar([
+        EleccionRenglon(
+          cantidad: 100,
+          propuesta: diario.resoluciones.single.propuestas.single,
+        ),
+      ]);
+      ahora = DateTime(2026, 9, 6, 8);
+
+      diario.redactarComida(
+        momento: Momento.desayuno,
+        notas: '200g yogur griego',
+        fecha: DateTime(2026, 9, 5, 22),
+      );
+      await diario.listo();
+      await diario.confirmar([
+        EleccionRenglon(
+          cantidad: 200,
+          propuesta: diario.resoluciones.single.propuestas.single,
+        ),
+      ]);
+
+      expect(diario.hoy().comidas, isEmpty);
+      expect(diario.hoy().macros.kcal, 0);
+      final pasado = diario.dia(DateTime(2026, 9, 5));
+      expect(pasado.comidas, hasLength(1));
+      expect(pasado.comidas.single.renglones, hasLength(2));
+      expect(pasado.comidas.single.renglones[1].cantidad, 200);
+      expect(pasado.macros.kcal, 291);
+    },
+  );
+
   test('confirmar una Comida en un Día pasado la anota en esa fecha', () async {
     final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
     await diario.crearAlimento(
@@ -1514,6 +1759,72 @@ void main() {
       Momento.desayuno,
     );
   });
+
+  test('un Día vacío arranca la captura en Desayuno', () {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+
+    expect(diario.momentoDeCaptura(DateTime(2026, 9, 6)), Momento.desayuno);
+  });
+
+  test('después de confirmar Extra, ese Momento es el que último recibió Renglones', () async {
+    var ahora = DateTime(2026, 9, 6, 8);
+    final diario = Diario(ahora: () => ahora);
+    await diario.crearAlimento(
+      nombre: 'yogur griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g yogur griego',
+    );
+    await diario.listo();
+    await diario.confirmar([
+      EleccionRenglon(
+        cantidad: 100,
+        propuesta: diario.resoluciones.single.propuestas.single,
+      ),
+    ]);
+    ahora = DateTime(2026, 9, 6, 9);
+    diario.redactarComida(momento: Momento.extra, notas: '200g yogur griego');
+    await diario.listo();
+    await diario.confirmar([
+      EleccionRenglon(
+        cantidad: 200,
+        propuesta: diario.resoluciones.single.propuestas.single,
+      ),
+    ]);
+
+    expect(diario.momentoDeCaptura(DateTime(2026, 9, 6)), Momento.extra);
+
+    ahora = DateTime(2026, 9, 6, 10);
+    diario.redactarComida(momento: Momento.desayuno, notas: '30g yogur griego');
+    await diario.listo();
+    await diario.confirmar([
+      EleccionRenglon(
+        cantidad: 30,
+        propuesta: diario.resoluciones.single.propuestas.single,
+      ),
+    ]);
+
+    expect(diario.momentoDeCaptura(DateTime(2026, 9, 6)), Momento.desayuno);
+  });
+}
+
+class _PuertoBusquedaIAEnOrden implements PuertoBusquedaIA {
+  _PuertoBusquedaIAEnOrden({required this.alBuscar});
+
+  final Future<void> Function() alBuscar;
+
+  @override
+  Future<List<Propuesta>> buscar(Renglon renglon) async {
+    await alBuscar();
+    return const [];
+  }
 }
 
 class _PuertoBusquedaIARoto implements PuertoBusquedaIA {

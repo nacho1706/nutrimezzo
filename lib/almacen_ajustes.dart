@@ -88,6 +88,7 @@ Alimento _alimentoDe(Map<String, dynamic> json) {
 
 Comida _comidaDe(Map<String, dynamic> json) {
   final fecha = DateTime.parse(json['fecha'] as String);
+  final recibido = json['recibidoPorUltimaVez'] as String?;
   return Comida(
     id: json['id'] as String? ?? '',
     momento: Momento.values.byName(json['momento'] as String),
@@ -96,6 +97,7 @@ Comida _comidaDe(Map<String, dynamic> json) {
       for (final item in json['renglones'] as List<dynamic>)
         _renglonDe(item as Map<String, dynamic>),
     ],
+    recibidoPorUltimaVez: recibido == null ? null : DateTime.parse(recibido),
   );
 }
 
@@ -164,6 +166,8 @@ Map<String, Object?> _comidaJson(Comida comida) {
     'renglones': [
       for (final renglon in comida.renglones) _renglonJson(renglon),
     ],
+    if (comida.recibidoPorUltimaVez != null)
+      'recibidoPorUltimaVez': comida.recibidoPorUltimaVez!.toIso8601String(),
   };
 }
 

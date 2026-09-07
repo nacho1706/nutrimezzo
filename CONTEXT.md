@@ -9,16 +9,16 @@ A named edible whose nutrition is stored per 100 g. Created by confirming a Prop
 _Avoid_: comida (when meaning the food itself), custom (as a separate type)
 
 **Cantidad**:
-The amount of an Alimento in a log line, in grams. Typed (`100g`) or inferred at confirmation when the line has no grams (`banana chica`).
-_Avoid_: porción (when meaning grams), serving size (as the stored nutrition basis)
+The amount of an Alimento in a log line, in grams. Typed (`100g`) or inferred at confirmation when the line has no grams (`banana chica`, `2 huevos`). A count or size in the name is not Cantidad; those grams are assumed for the whole line.
+_Avoid_: porción (when meaning grams), serving size (as the stored nutrition basis), treating `2` in `2 huevos` as grams
 
 **Renglón**:
 One line inside a Comida: parsed Cantidad plus a reference to an Alimento after confirmation. Día Macros are calculated from those references; editing an Alimento recalculates the past.
 _Avoid_: item, línea (as the domain object), comida (when meaning one line), snapshot of macros on the line
 
 **Comida**:
-A set of Renglones captured together in one notes-style list, submitted as a whole before confirmation. Belongs to one Día and may carry a Momento.
-_Avoid_: using comida for the food itself (that is Alimento)
+The set of Renglones for one Momento on one Día. Another capture, or moving a Comida onto that Momento, joins it; Renglones already on it are not confirmed again.
+_Avoid_: using comida for the food itself (that is Alimento), a second Comida for the same Momento on the same Día, treating a capture sitting as a separate Comida
 
 **Día**:
 A calendar date in the user's local timezone. Comidas of that date roll up against the Meta.
@@ -29,8 +29,8 @@ The daily target: calories, protein, carbs, and fat. There is no per-Momento bud
 _Avoid_: goal, presupuesto por comida
 
 **Momento**:
-A label on a Comida for grouping (desayuno, almuerzo, cena, extra). Not a nutrition target.
-_Avoid_: meal (as a budget), comida (when meaning the slot)
+The slot a Comida occupies on a Día (desayuno, almuerzo, cena, extra). A Día has at most one Comida per Momento. Not a nutrition target.
+_Avoid_: meal (as a budget), comida (when meaning the slot), a second Momento of the same name on the same Día
 
 **Macros**:
 Calories, protein, carbs, and fat. That is the only nutrition this context tracks.
