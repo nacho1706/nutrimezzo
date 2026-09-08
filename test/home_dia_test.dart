@@ -1,13 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nutrimezzo/diario.dart';
+import 'package:nutrimezzo/home_dia.dart';
 import 'package:nutrimezzo/main.dart';
 
 import 'desactivar_animaciones.dart';
 import 'opacidad.dart';
 
+PintorAnilloKcal pintorAnillo(WidgetTester tester) {
+  return tester
+          .widget<CustomPaint>(
+            find.descendant(
+              of: find.byType(AnilloKcal),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .painter!
+      as PintorAnilloKcal;
+}
+
+void testDia(String description, WidgetTesterCallback body) {
+  testWidgets(description, (tester) async {
+    tester.view.physicalSize = const Size(800, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await body(tester);
+  });
+}
+
 void main() {
-  testWidgets('el Día anterior se abre de golpe con sus Comidas y totales', (
+  testDia('el Día anterior se abre de golpe con sus Comidas y totales', (
     tester,
   ) async {
     const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
@@ -50,62 +73,61 @@ void main() {
     expect(find.text('0 / 2000 kcal'), findsNothing);
   });
 
-  testWidgets(
-    'tocar un Renglón en el Día muestra sus Macros y no abre un editor',
-    (tester) async {
-      desactivarAnimaciones(tester);
-      const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
-      final yogur = Alimento(
-        id: 'a1',
-        nombre: 'yogur griego',
-        macrosPor100g: macros,
-        patron: 'yogur griego',
-        usadoPorUltimaVez: DateTime(2026, 9, 6, 8),
-      );
-      final diario = Diario(
-        ahora: () => DateTime(2026, 9, 6, 8),
-        alimentos: [yogur],
-        comidas: [
-          Comida(
-            id: 'c1',
-            momento: Momento.desayuno,
-            fecha: DateTime(2026, 9, 6),
-            renglones: [
-              Renglon(
-                nombre: 'yogur griego',
-                cantidad: 100,
-                alimentoId: yogur.id,
-              ),
-            ],
-          ),
-        ],
-      );
-      await tester.pumpWidget(NutriMezzoApp(diario: diario));
+  testDia('tocar un Renglón en el Día muestra sus Macros y no abre un editor', (
+    tester,
+  ) async {
+    desactivarAnimaciones(tester);
+    const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
+    final yogur = Alimento(
+      id: 'a1',
+      nombre: 'yogur griego',
+      macrosPor100g: macros,
+      patron: 'yogur griego',
+      usadoPorUltimaVez: DateTime(2026, 9, 6, 8),
+    );
+    final diario = Diario(
+      ahora: () => DateTime(2026, 9, 6, 8),
+      alimentos: [yogur],
+      comidas: [
+        Comida(
+          id: 'c1',
+          momento: Momento.desayuno,
+          fecha: DateTime(2026, 9, 6),
+          renglones: [
+            Renglon(
+              nombre: 'yogur griego',
+              cantidad: 100,
+              alimentoId: yogur.id,
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
-      expect(find.text('97 / 2000 kcal'), findsOneWidget);
-      expect(find.text('97 kcal'), findsNothing);
+    expect(find.text('97 / 2000 kcal'), findsOneWidget);
+    expect(find.text('97 kcal'), findsNothing);
 
-      await tester.tap(find.text('yogur griego'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('yogur griego'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('100 g'), findsOneWidget);
-      expect(find.text('97 kcal'), findsOneWidget);
-      expect(find.text('10 g'), findsOneWidget);
-      expect(find.text('3.6 g'), findsOneWidget);
-      expect(find.text('5 g'), findsOneWidget);
-      expect(find.text('Calorías'), findsNWidgets(2));
-      expect(find.text('Proteína (P)'), findsNWidgets(2));
-      expect(find.text('Carbos (C)'), findsNWidgets(2));
-      expect(find.text('Grasa (F)'), findsNWidgets(2));
-      expect(find.text('97 / 2000 kcal'), findsOneWidget);
-      expect(find.text('Borrar Renglón'), findsNothing);
-      expect(find.text('Guardar'), findsNothing);
-      expect(find.text('Cantidad'), findsNothing);
-      expect(find.text('Alimento'), findsNothing);
-    },
-  );
+    expect(find.text('100 g'), findsOneWidget);
+    expect(find.text('97 kcal'), findsOneWidget);
+    expect(find.text('10 g'), findsOneWidget);
+    expect(find.text('3.6 g'), findsOneWidget);
+    expect(find.text('5 g'), findsOneWidget);
+    expect(find.text('Calorías'), findsOneWidget);
+    expect(find.text('Proteína (P)'), findsNWidgets(2));
+    expect(find.text('Carbos (C)'), findsNWidgets(2));
+    expect(find.text('Grasa (F)'), findsNWidgets(2));
+    expect(find.text('97 / 2000 kcal'), findsOneWidget);
+    expect(find.text('Borrar Renglón'), findsNothing);
+    expect(find.text('Guardar'), findsNothing);
+    expect(find.text('Cantidad'), findsNothing);
+    expect(find.text('Alimento'), findsNothing);
+  });
 
-  testWidgets('borrar una Comida desde Hoy baja los totales', (tester) async {
+  testDia('borrar una Comida desde Hoy baja los totales', (tester) async {
     desactivarAnimaciones(tester);
     const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
     final yogur = Alimento(
@@ -144,7 +166,7 @@ void main() {
     expect(diario.hoy().comidas, isEmpty);
   });
 
-  testWidgets(
+  testDia(
     'confirmar una Comida interpola las kcal del mismo Día, no las salta',
     (tester) async {
       const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
@@ -177,13 +199,14 @@ void main() {
       await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
       expect(find.text('97 / 2000 kcal'), findsNothing);
+      expect(pintorAnillo(tester).progreso, lessThan(97 / 2000));
       expect(
         tester
             .widget<LinearProgressIndicator>(
               find.byType(LinearProgressIndicator).first,
             )
             .value,
-        lessThan(97 / 2000),
+        lessThan(10 / 150),
       );
 
       await tester.pump(const Duration(milliseconds: 100));
@@ -191,63 +214,56 @@ void main() {
 
       await tester.pumpAndSettle();
       expect(find.text('97 / 2000 kcal'), findsOneWidget);
+      expect(pintorAnillo(tester).progreso, closeTo(97 / 2000, 0.0001));
       expect(
         tester
             .widget<LinearProgressIndicator>(
               find.byType(LinearProgressIndicator).first,
             )
             .value,
-        closeTo(97 / 2000, 0.0001),
+        closeTo(10 / 150, 0.0001),
       );
     },
   );
 
-  testWidgets(
-    'disableAnimations deja las macros del mismo Día en el valor final',
-    (tester) async {
-      desactivarAnimaciones(tester);
+  testDia('disableAnimations deja las macros del mismo Día en el valor final', (
+    tester,
+  ) async {
+    desactivarAnimaciones(tester);
 
-      const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
-      final yogur = Alimento(
-        id: 'a1',
-        nombre: 'yogur griego',
-        macrosPor100g: macros,
-        patron: 'yogur griego',
-        usadoPorUltimaVez: DateTime(2026, 9, 6, 8),
-      );
-      final diario = Diario(
-        ahora: () => DateTime(2026, 9, 6, 8),
-        alimentos: [yogur],
-      );
-      await tester.pumpWidget(NutriMezzoApp(diario: diario));
+    const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
+    final yogur = Alimento(
+      id: 'a1',
+      nombre: 'yogur griego',
+      macrosPor100g: macros,
+      patron: 'yogur griego',
+      usadoPorUltimaVez: DateTime(2026, 9, 6, 8),
+    );
+    final diario = Diario(
+      ahora: () => DateTime(2026, 9, 6, 8),
+      alimentos: [yogur],
+    );
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
-      diario.redactarComida(
-        momento: Momento.desayuno,
-        notas: '100g yogur griego',
-        fecha: DateTime(2026, 9, 6),
-      );
-      await diario.listo();
-      await diario.confirmar([
-        EleccionRenglon(
-          cantidad: 100,
-          propuesta: diario.resoluciones.single.propuestas.single,
-        ),
-      ]);
-      await tester.pumpWidget(NutriMezzoApp(diario: diario));
+    diario.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g yogur griego',
+      fecha: DateTime(2026, 9, 6),
+    );
+    await diario.listo();
+    await diario.confirmar([
+      EleccionRenglon(
+        cantidad: 100,
+        propuesta: diario.resoluciones.single.propuestas.single,
+      ),
+    ]);
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
-      expect(find.text('97 / 2000 kcal'), findsOneWidget);
-      expect(
-        tester
-            .widget<LinearProgressIndicator>(
-              find.byType(LinearProgressIndicator).first,
-            )
-            .value,
-        closeTo(97 / 2000, 0.0001),
-      );
-    },
-  );
+    expect(find.text('97 / 2000 kcal'), findsOneWidget);
+    expect(pintorAnillo(tester).progreso, closeTo(97 / 2000, 0.0001));
+  });
 
-  testWidgets(
+  testDia(
     'el primer pintado de un Día muestra las macros finales, no llena desde 0',
     (tester) async {
       const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
@@ -279,18 +295,13 @@ void main() {
       await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
       expect(find.text('97 / 2000 kcal'), findsOneWidget);
-      expect(
-        tester
-            .widget<LinearProgressIndicator>(
-              find.byType(LinearProgressIndicator).first,
-            )
-            .value,
-        closeTo(97 / 2000, 0.0001),
-      );
+      expect(pintorAnillo(tester).progreso, closeTo(97 / 2000, 0.0001));
+      expect(find.byType(AnilloKcal), findsOneWidget);
+      expect(find.byType(LinearProgressIndicator), findsNWidgets(3));
     },
   );
 
-  testWidgets('Confirmar no recrea HomeDia: se queda en el Día mostrado', (
+  testDia('Confirmar no recrea HomeDia: se queda en el Día mostrado', (
     tester,
   ) async {
     desactivarAnimaciones(tester);
@@ -326,7 +337,7 @@ void main() {
     expect(find.text('97 / 2000 kcal'), findsOneWidget);
   });
 
-  testWidgets(
+  testDia(
     'Hoy con dos Comidas guardadas del mismo Momento muestra un solo encabezado',
     (tester) async {
       desactivarAnimaciones(tester);
@@ -377,7 +388,7 @@ void main() {
     },
   );
 
-  testWidgets(
+  testDia(
     'tocar de nuevo oculta los Macros; tocar otro deja uno solo abierto',
     (tester) async {
       desactivarAnimaciones(tester);
@@ -440,7 +451,7 @@ void main() {
     },
   );
 
-  testWidgets('tocar la fecha o las barras de Meta no abre el detalle', (
+  testDia('tocar la fecha, el anillo o las barras no abre el detalle', (
     tester,
   ) async {
     desactivarAnimaciones(tester);
@@ -476,7 +487,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('97 kcal'), findsNothing);
 
-    await tester.tap(find.text('Calorías'));
+    await tester.tap(find.byType(AnilloKcal));
     await tester.pumpAndSettle();
     expect(find.text('97 kcal'), findsNothing);
 
@@ -486,7 +497,7 @@ void main() {
     expect(find.text('97 / 2000 kcal'), findsOneWidget);
   });
 
-  testWidgets(
+  testDia(
     'el detalle de un Renglón entra en fade; disableAnimations lo deja opaco',
     (tester) async {
       const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
@@ -526,7 +537,7 @@ void main() {
     },
   );
 
-  testWidgets('disableAnimations muestra los Macros expandidos de inmediato', (
+  testDia('disableAnimations muestra los Macros expandidos de inmediato', (
     tester,
   ) async {
     desactivarAnimaciones(tester);
@@ -563,7 +574,7 @@ void main() {
     expect(opacidadDe(tester, find.text('97 kcal')), 1);
   });
 
-  testWidgets('cambiar de Día cierra el Renglón abierto', (tester) async {
+  testDia('cambiar de Día cierra el Renglón abierto', (tester) async {
     desactivarAnimaciones(tester);
     const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
     final yogur = Alimento(
@@ -617,7 +628,7 @@ void main() {
     expect(find.text('200 g'), findsOneWidget);
   });
 
-  testWidgets('un Día pasado expande un Renglón igual que Hoy', (tester) async {
+  testDia('un Día pasado expande un Renglón igual que Hoy', (tester) async {
     desactivarAnimaciones(tester);
     const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
     final yogur = Alimento(
@@ -658,7 +669,7 @@ void main() {
     expect(find.text('3.6 g'), findsOneWidget);
   });
 
-  testWidgets('el menú del Día sigue borrando la Comida y uniendo Momentos', (
+  testDia('el menú del Día sigue borrando la Comida y uniendo Momentos', (
     tester,
   ) async {
     desactivarAnimaciones(tester);
@@ -718,5 +729,86 @@ void main() {
     expect(find.text('Almuerzo'), findsNothing);
     expect(find.text('0 / 2000 kcal'), findsOneWidget);
     expect(diario.hoy().comidas, isEmpty);
+  });
+
+  testDia('2200 / 2000 kcal no se ve igual que un anillo lleno a la Meta', (
+    tester,
+  ) async {
+    desactivarAnimaciones(tester);
+
+    Diario diarioCon({required num kcal}) {
+      final alimento = Alimento(
+        id: 'a1',
+        nombre: 'lote',
+        macrosPor100g: Macros(kcal: kcal, proteina: 10, carbos: 3.6, grasa: 5),
+        patron: 'lote',
+        usadoPorUltimaVez: DateTime(2026, 9, 6, 8),
+      );
+      return Diario(
+        ahora: () => DateTime(2026, 9, 6, 8),
+        alimentos: [alimento],
+        comidas: [
+          Comida(
+            id: 'c1',
+            momento: Momento.desayuno,
+            fecha: DateTime(2026, 9, 6),
+            renglones: [
+              Renglon(nombre: 'lote', cantidad: 100, alimentoId: alimento.id),
+            ],
+          ),
+        ],
+      );
+    }
+
+    await tester.pumpWidget(NutriMezzoApp(diario: diarioCon(kcal: 2000)));
+    expect(find.text('2000 / 2000 kcal'), findsOneWidget);
+    expect(pintorAnillo(tester).progreso, 1.0);
+
+    await tester.pumpWidget(NutriMezzoApp(diario: diarioCon(kcal: 2200)));
+    expect(find.text('2200 / 2000 kcal'), findsOneWidget);
+    expect(pintorAnillo(tester).progreso, closeTo(1.1, 0.0001));
+  });
+
+  testDia('proteína por encima de la Meta sigue viéndose como barra llena', (
+    tester,
+  ) async {
+    desactivarAnimaciones(tester);
+    const macros = Macros(kcal: 97, proteina: 160, carbos: 3.6, grasa: 5);
+    final yogur = Alimento(
+      id: 'a1',
+      nombre: 'yogur griego',
+      macrosPor100g: macros,
+      patron: 'yogur griego',
+      usadoPorUltimaVez: DateTime(2026, 9, 6, 8),
+    );
+    final diario = Diario(
+      ahora: () => DateTime(2026, 9, 6, 8),
+      alimentos: [yogur],
+      comidas: [
+        Comida(
+          id: 'c1',
+          momento: Momento.desayuno,
+          fecha: DateTime(2026, 9, 6),
+          renglones: [
+            Renglon(
+              nombre: 'yogur griego',
+              cantidad: 100,
+              alimentoId: yogur.id,
+            ),
+          ],
+        ),
+      ],
+    );
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+    expect(find.text('160 / 150 g'), findsOneWidget);
+    expect(
+      tester
+          .widget<LinearProgressIndicator>(
+            find.byType(LinearProgressIndicator).first,
+          )
+          .value,
+      1.0,
+    );
   });
 }
