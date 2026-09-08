@@ -127,6 +127,10 @@ class _HomeDiaState extends State<HomeDia> {
                   consumido: consumidos.kcal,
                   objetivo: objetivo.kcal,
                 ),
+                _lineaSeparadora(
+                  theme,
+                  key: const Key('separador-anillo-barras'),
+                ),
                 _MacroContraMeta(
                   key: ValueKey('${dia.fecha}-proteina'),
                   etiqueta: 'Proteína (P)',
@@ -148,8 +152,19 @@ class _HomeDiaState extends State<HomeDia> {
                   consumido: consumidos.grasa,
                   objetivo: objetivo.grasa,
                 ),
-                for (final momento in Momento.values)
-                  ..._bloqueMomento(theme, dia, momento),
+                if (dia.comidas.isNotEmpty)
+                  _lineaSeparadora(
+                    theme,
+                    key: const Key('separador-meta-momentos'),
+                    height: 24,
+                  ),
+                for (var i = 0; i < Momento.values.length; i++)
+                  ..._bloqueMomento(
+                    theme,
+                    dia,
+                    Momento.values[i],
+                    separarArriba: _hayMomentoOcupadoAntes(dia, i),
+                  ),
               ],
             )
           : _CalendarioMes(
@@ -281,7 +296,23 @@ class _HomeDiaState extends State<HomeDia> {
     }
   }
 
-  List<Widget> _bloqueMomento(ThemeData theme, Dia dia, Momento momento) {
+  bool _hayMomentoOcupadoAntes(Dia dia, int indice) {
+    for (var i = 0; i < indice; i++) {
+      for (final comida in dia.comidas) {
+        if (comida.momento == Momento.values[i]) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  List<Widget> _bloqueMomento(
+    ThemeData theme,
+    Dia dia,
+    Momento momento, {
+    required bool separarArriba,
+  }) {
     final comidas = [
       for (final comida in dia.comidas)
         if (comida.momento == momento) comida,
@@ -291,73 +322,126 @@ class _HomeDiaState extends State<HomeDia> {
     }
     final cerrado = _momentosCerrados.contains(momento);
     return [
-      const SizedBox(height: 12),
-      for (final comida in comidas) ...[
-        Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: () => _alternarMomento(momento),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Row(
+      if (separarArriba)
+        _lineaSeparadora(
+          theme,
+          key: Key('separador-momentos-${momento.name}'),
+        )
+      else
+        const SizedBox(height: 4),
+      Material(
+        color: theme.colorScheme.surfaceContainerLow,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: theme.colorScheme.primary, width: 3),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(19, 2, 19, 4),
+            child: Column(
+              children: [
+                for (final comida in comidas) ...[
+                  Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          momento.etiqueta,
-                          style: theme.textTheme.titleMedium,
+                        child: InkWell(
+                          onTap: () => _alternarMomento(momento),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              children: [
+                                AnimatedRotation(
+                                  turns: cerrado ? -0.25 : 0,
+                                  duration: duracionMotionDe(context),
+                                  curve: Curves.easeOutCubic,
+                                  child: Icon(
+                                    Icons.expand_more,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    momento.etiqueta,
+                                    style: theme.textTheme.titleMedium,
+                                  ),
+                                ),
+                                Text(
+                                  '${_textoNumero(_kcalDe(comida))} kcal',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      Text(
-                        '${_textoNumero(_kcalDe(comida))} kcal',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                        ),
+                      PopupMenuButton<String>(
+                        onSelected: (valor) => _menuComida(comida, valor),
+                        itemBuilder: (context) => [
+                          for (final otro in Momento.values)
+                            PopupMenuItem(
+                              value: 'momento:${otro.name}',
+                              child: Text(otro.etiqueta),
+                            ),
+                          const PopupMenuItem(
+                            value: 'borrar',
+                            child: Text('Borrar Comida'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (valor) => _menuComida(comida, valor),
-              itemBuilder: (context) => [
-                for (final otro in Momento.values)
-                  PopupMenuItem(
-                    value: 'momento:${otro.name}',
-                    child: Text(otro.etiqueta),
+                  EntradaAlDesplegar(
+                    cerrado: cerrado,
+                    child: Column(
+                      children: [
+                        Divider(
+                          height: 1,
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                        for (var i = 0; i < comida.renglones.length; i++) ...[
+                          ListTile(
+                            dense: true,
+                            visualDensity: VisualDensity.compact,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(comida.renglones[i].nombre),
+                            trailing: Text(
+                              '${comida.renglones[i].cantidad} g',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                            ),
+                            onTap: () => _alternarRenglon(comida, i),
+                          ),
+                          if (_renglonAbierto == '${comida.id}:$i')
+                            entradaRenglon(
+                              context,
+                              _MacrosDeRenglon(
+                                macros: widget.diario.macrosDe(
+                                  comida.renglones[i],
+                                ),
+                              ),
+                              key: ValueKey('macros-${comida.id}-$i'),
+                            ),
+                        ],
+                      ],
+                    ),
                   ),
-                const PopupMenuItem(
-                  value: 'borrar',
-                  child: Text('Borrar Comida'),
-                ),
+                ],
               ],
             ),
-          ],
+          ),
         ),
-        if (!cerrado)
-          for (var i = 0; i < comida.renglones.length; i++) ...[
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(comida.renglones[i].nombre),
-              trailing: Text(
-                '${comida.renglones[i].cantidad} g',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              onTap: () => _alternarRenglon(comida, i),
-            ),
-            if (_renglonAbierto == '${comida.id}:$i')
-              entradaRenglon(
-                context,
-                _MacrosDeRenglon(
-                  macros: widget.diario.macrosDe(comida.renglones[i]),
-                ),
-                key: ValueKey('macros-${comida.id}-$i'),
-              ),
-          ],
-      ],
+      ),
     ];
   }
 }
@@ -378,7 +462,7 @@ class AnilloKcal extends StatelessWidget {
     final duration = duracionMotionDe(context);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 4),
       child: TweenAnimationBuilder<double>(
         tween: Tween<double>(end: consumido.toDouble()),
         duration: duration,
@@ -394,8 +478,8 @@ class AnilloKcal extends StatelessWidget {
                 exceso: theme.colorScheme.tertiary,
               ),
               child: SizedBox(
-                width: 120,
-                height: 120,
+                width: 210,
+                height: 210,
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -431,7 +515,7 @@ class PintorAnilloKcal extends CustomPainter {
   final Color fondo;
   final Color exceso;
 
-  static const _trazo = 12.0;
+  static const _trazo = 20.0;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -497,7 +581,7 @@ class _MacroContraMeta extends StatelessWidget {
     final duration = duracionMotionDe(context);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 4),
       child: TweenAnimationBuilder<double>(
         tween: Tween<double>(end: consumido.toDouble()),
         duration: duration,
@@ -657,7 +741,7 @@ class _CalendarioMes extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -737,6 +821,15 @@ Color? _colorTextoCumplimiento(ColorScheme scheme, Cumplimiento cumplimiento) {
 }
 
 String _entero(num valor) => valor.round().toString();
+
+Widget _lineaSeparadora(ThemeData theme, {Key? key, double height = 24}) {
+  return Divider(
+    key: key,
+    height: height,
+    thickness: 1,
+    color: theme.colorScheme.outlineVariant,
+  );
+}
 
 class _MacrosDeRenglon extends StatelessWidget {
   const _MacrosDeRenglon({required this.macros});
