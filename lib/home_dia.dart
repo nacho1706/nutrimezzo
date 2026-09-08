@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'ajustes.dart';
@@ -118,11 +120,9 @@ class _HomeDiaState extends State<HomeDia> {
                 ),
                 const SizedBox(height: 8),
                 Text('Contra la Meta', style: theme.textTheme.headlineSmall),
-                const SizedBox(height: 24),
-                _MacroContraMeta(
+                const SizedBox(height: 16),
+                AnilloKcal(
                   key: ValueKey('${dia.fecha}-kcal'),
-                  etiqueta: 'Calorías',
-                  unidad: 'kcal',
                   consumido: consumidos.kcal,
                   objetivo: objetivo.kcal,
                 ),
@@ -310,6 +310,120 @@ class _HomeDiaState extends State<HomeDia> {
   }
 }
 
+class AnilloKcal extends StatelessWidget {
+  const AnilloKcal({
+    super.key,
+    required this.consumido,
+    required this.objetivo,
+  });
+
+  final num consumido;
+  final num objetivo;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final duration = duracionMotionDe(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(end: consumido.toDouble()),
+        duration: duration,
+        curve: Curves.easeOutCubic,
+        builder: (context, valor, child) {
+          final progreso = objetivo <= 0 ? 0.0 : valor / objetivo;
+          return Center(
+            child: CustomPaint(
+              painter: PintorAnilloKcal(
+                progreso: progreso,
+                color: theme.colorScheme.primary,
+                fondo: theme.colorScheme.secondaryContainer,
+                exceso: theme.colorScheme.tertiary,
+              ),
+              child: SizedBox(
+                width: 120,
+                height: 120,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: FittedBox(
+                      child: Text(
+                        '${_entero(valor)} / ${_entero(objetivo)} kcal',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class PintorAnilloKcal extends CustomPainter {
+  const PintorAnilloKcal({
+    required this.progreso,
+    required this.color,
+    required this.fondo,
+    required this.exceso,
+  });
+
+  final double progreso;
+  final Color color;
+  final Color fondo;
+  final Color exceso;
+
+  static const _trazo = 12.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centro = Offset(size.width / 2, size.height / 2);
+    final radio = (math.min(size.width, size.height) - _trazo) / 2;
+    final rect = Rect.fromCircle(center: centro, radius: radio);
+    const inicio = -math.pi / 2;
+
+    final pista = Paint()
+      ..color = fondo
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _trazo;
+    canvas.drawCircle(centro, radio, pista);
+
+    final lleno = progreso.clamp(0.0, 1.0);
+    if (lleno > 0) {
+      final activo = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _trazo
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(rect, inicio, lleno * 2 * math.pi, false, activo);
+    }
+
+    if (progreso > 1) {
+      final extra = (progreso - 1).clamp(0.0, 1.0);
+      final desborde = Paint()
+        ..color = exceso
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = _trazo
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(rect, inicio, extra * 2 * math.pi, false, desborde);
+    }
+  }
+
+  @override
+  bool shouldRepaint(PintorAnilloKcal oldDelegate) {
+    return oldDelegate.progreso != progreso ||
+        oldDelegate.color != color ||
+        oldDelegate.fondo != fondo ||
+        oldDelegate.exceso != exceso;
+  }
+}
+
 class _MacroContraMeta extends StatelessWidget {
   const _MacroContraMeta({
     super.key,
@@ -331,7 +445,7 @@ class _MacroContraMeta extends StatelessWidget {
     final duration = duracionMotionDe(context);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 8),
       child: TweenAnimationBuilder<double>(
         tween: Tween<double>(end: consumido.toDouble()),
         duration: duration,
@@ -340,28 +454,26 @@ class _MacroContraMeta extends StatelessWidget {
           final progreso = objetivo <= 0
               ? 0.0
               : (valor / objetivo).clamp(0.0, 1.0);
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          return Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(etiqueta, style: theme.textTheme.titleMedium),
-                  ),
-                  Text(
-                    '${_entero(valor)} / ${_entero(objetivo)} $unidad',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                ],
+              SizedBox(
+                width: 108,
+                child: Text(etiqueta, style: theme.textTheme.bodyMedium),
               ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(999),
-                child: LinearProgressIndicator(
-                  value: progreso.toDouble(),
-                  minHeight: 10,
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progreso.toDouble(),
+                    minHeight: 6,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_entero(valor)} / ${_entero(objetivo)} $unidad',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ],
