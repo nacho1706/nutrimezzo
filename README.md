@@ -16,9 +16,30 @@ flutter pub get
 flutter run
 ```
 
-Elegí un dispositivo Android cuando `flutter devices` lo liste. La primera vez, `flutter doctor` indica si falta el SDK o las licencias (`flutter doctor --android-licenses`). Si `/tmp` es tmpfs chico (Omarchy), mise apunta `TMPDIR` al disco para que Gradle no se quede sin espacio.
+Para un teléfono físico:
+
+1. En Android, activá **Opciones de desarrollador** y **Depuración USB**.
+2. Conectá el teléfono por USB y aceptá en el aparato la huella RSA de la computadora cuando aparezca.
+3. Verificá que `flutter devices` lo vea.
+4. Recién ahí corré `flutter run` y elegí ese dispositivo si Flutter te pregunta.
+
+La primera vez, `flutter doctor` indica si falta el SDK o las licencias (`flutter doctor --android-licenses`). Si `/tmp` es tmpfs chico (Omarchy), mise apunta `TMPDIR` al disco para que Gradle no se quede sin espacio.
 
 Para un atajo local (`scripts/run-android.sh`), copiá `.env.example` a `.env` y poné el serial de `flutter devices`. Eso es solo desarrollo en tu máquina; `.env` no se commitea.
+
+## Instalar un APK en un teléfono
+
+Hoy el repo está preparado sobre todo para desarrollo local con `flutter run`.
+
+Si querés generar un APK de prueba:
+
+```bash
+flutter build apk
+```
+
+El archivo queda en `build/app/outputs/flutter-apk/app-release.apk` y se puede instalar manualmente en Android.
+
+Importante: la variante `release` actual usa firma de `debug`, así que sirve para pruebas locales, no para publicar ni distribuir como build final. Si más adelante querés una instalación "real" fuera de desarrollo, hay que configurar firma de release propia.
 
 ## Tests
 
