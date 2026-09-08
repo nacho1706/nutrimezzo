@@ -25,6 +25,190 @@ void main() {
     expect(meta.macros.grasa, 70);
   });
 
+  test('una fecha sin Comida tiene Cumplimiento ninguno aunque los macros sean cero', () {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+
+    expect(diario.hoy().macros.kcal, 0);
+    expect(diario.cumplimientoDe(DateTime(2026, 9, 6)), Cumplimiento.ninguno);
+  });
+
+  test('kcal por encima de la Meta es rojo aunque la proteína esté alta', () {
+    const macros = Macros(kcal: 2100, proteina: 200, carbos: 10, grasa: 10);
+    final alimento = Alimento(
+      id: 'a1',
+      nombre: 'prueba',
+      macrosPor100g: macros,
+      patron: 'prueba',
+      usadoPorUltimaVez: DateTime(2026, 9, 5, 8),
+    );
+    final diario = Diario(
+      ahora: () => DateTime(2026, 9, 6, 8),
+      alimentos: [alimento],
+      comidas: [
+        Comida(
+          id: 'c1',
+          momento: Momento.desayuno,
+          fecha: DateTime(2026, 9, 5),
+          renglones: [
+            Renglon(nombre: 'prueba', cantidad: 100, alimentoId: alimento.id),
+          ],
+        ),
+      ],
+    );
+
+    expect(diario.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.rojo);
+  });
+
+  test('kcal no por encima y proteína bajo la Meta es amarillo', () {
+    final diario = _diarioConDia(
+      fecha: DateTime(2026, 9, 5),
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+
+    expect(diario.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.amarillo);
+  });
+
+  test('kcal no por encima y proteína en o sobre la Meta es verde', () {
+    final enElPiso = _diarioConDia(
+      fecha: DateTime(2026, 9, 5),
+      macrosPor100g: const Macros(
+        kcal: 1800,
+        proteina: 150,
+        carbos: 10,
+        grasa: 10,
+      ),
+    );
+    final sobreElPiso = _diarioConDia(
+      fecha: DateTime(2026, 9, 5),
+      macrosPor100g: const Macros(
+        kcal: 1800,
+        proteina: 200,
+        carbos: 10,
+        grasa: 10,
+      ),
+    );
+
+    expect(enElPiso.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.verde);
+    expect(
+      sobreElPiso.cumplimientoDe(DateTime(2026, 9, 5)),
+      Cumplimiento.verde,
+    );
+  });
+
+  test('kcal exactamente en la Meta no es rojo; proteína exactamente en la Meta no es amarillo', () {
+    final justo = _diarioConDia(
+      fecha: DateTime(2026, 9, 5),
+      macrosPor100g: const Macros(
+        kcal: 2000,
+        proteina: 150,
+        carbos: 10,
+        grasa: 10,
+      ),
+    );
+    final techoSinPiso = _diarioConDia(
+      fecha: DateTime(2026, 9, 5),
+      macrosPor100g: const Macros(
+        kcal: 2000,
+        proteina: 149,
+        carbos: 10,
+        grasa: 10,
+      ),
+    );
+
+    expect(justo.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.verde);
+    expect(
+      techoSinPiso.cumplimientoDe(DateTime(2026, 9, 5)),
+      Cumplimiento.amarillo,
+    );
+  });
+
+  test('carbos y grasa no cambian el Cumplimiento', () {
+    final verdeConCarbos = _diarioConDia(
+      fecha: DateTime(2026, 9, 5),
+      macrosPor100g: const Macros(
+        kcal: 1800,
+        proteina: 160,
+        carbos: 900,
+        grasa: 200,
+      ),
+    );
+    final amarilloConGrasa = _diarioConDia(
+      fecha: DateTime(2026, 9, 5),
+      macrosPor100g: const Macros(
+        kcal: 1800,
+        proteina: 10,
+        carbos: 900,
+        grasa: 200,
+      ),
+    );
+
+    expect(
+      verdeConCarbos.cumplimientoDe(DateTime(2026, 9, 5)),
+      Cumplimiento.verde,
+    );
+    expect(
+      amarilloConGrasa.cumplimientoDe(DateTime(2026, 9, 5)),
+      Cumplimiento.amarillo,
+    );
+  });
+
+  test(
+    'subir el techo de kcal de la Meta rejuzga un Día rojo a verde',
+    () async {
+      final diario = _diarioConDia(
+        fecha: DateTime(2026, 9, 5),
+        macrosPor100g: const Macros(
+          kcal: 2100,
+          proteina: 160,
+          carbos: 10,
+          grasa: 10,
+        ),
+      );
+      expect(diario.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.rojo);
+
+      await diario.guardarMeta(
+        const Meta(
+          macros: Macros(kcal: 2200, proteina: 150, carbos: 250, grasa: 70),
+        ),
+      );
+
+      expect(diario.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.verde);
+    },
+  );
+
+  test(
+    'editar un Alimento para que las kcal superen la Meta deja el Día rojo',
+    () async {
+      final diario = _diarioConDia(
+        fecha: DateTime(2026, 9, 5),
+        macrosPor100g: const Macros(
+          kcal: 1800,
+          proteina: 160,
+          carbos: 10,
+          grasa: 10,
+        ),
+      );
+      expect(diario.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.verde);
+
+      await diario.editarAlimento(
+        id: 'a1',
+        macrosPor100g: const Macros(
+          kcal: 2100,
+          proteina: 160,
+          carbos: 10,
+          grasa: 10,
+        ),
+      );
+
+      expect(diario.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.rojo);
+    },
+  );
+
   test('hoy es la fecha local del reloj, no UTC', () {
     final diario = Diario(ahora: () => DateTime(2026, 9, 5, 23, 45));
     final fecha = diario.hoy().fecha;
@@ -1813,6 +1997,30 @@ void main() {
 
     expect(diario.momentoDeCaptura(DateTime(2026, 9, 6)), Momento.desayuno);
   });
+}
+
+Diario _diarioConDia({required DateTime fecha, required Macros macrosPor100g}) {
+  final alimento = Alimento(
+    id: 'a1',
+    nombre: 'prueba',
+    macrosPor100g: macrosPor100g,
+    patron: 'prueba',
+    usadoPorUltimaVez: fecha,
+  );
+  return Diario(
+    ahora: () => DateTime(2026, 9, 6, 8),
+    alimentos: [alimento],
+    comidas: [
+      Comida(
+        id: 'c1',
+        momento: Momento.desayuno,
+        fecha: DateTime(fecha.year, fecha.month, fecha.day),
+        renglones: [
+          Renglon(nombre: 'prueba', cantidad: 100, alimentoId: alimento.id),
+        ],
+      ),
+    ],
+  );
 }
 
 class _PuertoBusquedaIAEnOrden implements PuertoBusquedaIA {

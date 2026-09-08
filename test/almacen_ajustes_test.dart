@@ -183,4 +183,55 @@ void main() {
       expect(reabierto.alimentos.single.macrosPor100g.kcal, 59);
     },
   );
+
+  test(
+    'reabrir el almacén no guarda Cumplimiento ni un historial de Meta',
+    () async {
+      final primero = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+      await primero.crearAlimento(
+        nombre: 'yogur griego',
+        macrosPor100g: const Macros(
+          kcal: 97,
+          proteina: 10,
+          carbos: 3.6,
+          grasa: 5,
+        ),
+      );
+      primero.redactarComida(
+        momento: Momento.desayuno,
+        notas: '100g yogur griego',
+      );
+      await primero.listo();
+      await primero.confirmar([
+        EleccionRenglon(
+          cantidad: 100,
+          propuesta: primero.resoluciones.single.propuestas.single,
+        ),
+      ]);
+      await primero.guardarMeta(
+        const Meta(
+          macros: Macros(kcal: 1800, proteina: 140, carbos: 180, grasa: 55),
+        ),
+      );
+      await primero.guardarMeta(
+        const Meta(
+          macros: Macros(kcal: 2200, proteina: 150, carbos: 250, grasa: 70),
+        ),
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getKeys().where((clave) => clave.contains('cumplimiento')),
+        isEmpty,
+      );
+      expect(prefs.getDouble('meta.kcal'), 2200);
+
+      final reabierto = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+      expect(reabierto.meta.macros.kcal, 2200);
+      expect(
+        reabierto.cumplimientoDe(DateTime(2026, 9, 6)),
+        Cumplimiento.amarillo,
+      );
+    },
+  );
 }
