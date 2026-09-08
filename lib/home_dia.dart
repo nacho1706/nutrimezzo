@@ -15,20 +15,27 @@ class HomeDia extends StatefulWidget {
   State<HomeDia> createState() => _HomeDiaState();
 }
 
+enum _Destino { dia, cumplimiento }
+
 class _HomeDiaState extends State<HomeDia> {
   late DateTime _fecha;
+  late DateTime _mesMostrado;
   String? _renglonAbierto;
+  var _destino = _Destino.dia;
 
   @override
   void initState() {
     super.initState();
     _fecha = widget.diario.hoy().fecha;
+    _mesMostrado = DateTime(_fecha.year, _fecha.month);
   }
 
   bool get _esHoy {
     final hoy = widget.diario.hoy().fecha;
     return _fecha == hoy;
   }
+
+  bool get _enDia => _destino == _Destino.dia;
 
   @override
   Widget build(BuildContext context) {
@@ -40,18 +47,23 @@ class _HomeDiaState extends State<HomeDia> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_esHoy ? 'Hoy' : _diaDeSemana(dia.fecha)),
-        leading: IconButton(
-          tooltip: 'Día anterior',
-          onPressed: _diaAnterior,
-          icon: const Icon(Icons.chevron_left),
+        title: Text(
+          _enDia ? (_esHoy ? 'Hoy' : _diaDeSemana(dia.fecha)) : 'Cumplimiento',
         ),
+        leading: _enDia
+            ? IconButton(
+                tooltip: 'Día anterior',
+                onPressed: _diaAnterior,
+                icon: const Icon(Icons.chevron_left),
+              )
+            : null,
         actions: [
-          IconButton(
-            tooltip: 'Día siguiente',
-            onPressed: _diaSiguiente,
-            icon: const Icon(Icons.chevron_right),
-          ),
+          if (_enDia)
+            IconButton(
+              tooltip: 'Día siguiente',
+              onPressed: _diaSiguiente,
+              icon: const Icon(Icons.chevron_right),
+            ),
           IconButton(
             tooltip: 'Catálogo',
             onPressed: _abrirCatalogo,
@@ -64,55 +76,88 @@ class _HomeDiaState extends State<HomeDia> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _abrirCaptura,
-        icon: const Icon(Icons.edit_note),
-        label: const Text('Comida'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 88),
-        children: [
-          Text(
-            _fechaEnEspanol(dia.fecha),
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+      floatingActionButton: _enDia
+          ? FloatingActionButton.extended(
+              onPressed: _abrirCaptura,
+              icon: const Icon(Icons.edit_note),
+              label: const Text('Comida'),
+            )
+          : null,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _destino.index,
+        onDestinationSelected: (indice) {
+          setState(() {
+            _destino = _Destino.values[indice];
+            if (_destino == _Destino.cumplimiento) {
+              _mesMostrado = DateTime(_fecha.year, _fecha.month);
+            }
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.today_outlined),
+            selectedIcon: Icon(Icons.today),
+            label: 'Día',
           ),
-          const SizedBox(height: 8),
-          Text('Contra la Meta', style: theme.textTheme.headlineSmall),
-          const SizedBox(height: 24),
-          _MacroContraMeta(
-            key: ValueKey('${dia.fecha}-kcal'),
-            etiqueta: 'Calorías',
-            unidad: 'kcal',
-            consumido: consumidos.kcal,
-            objetivo: objetivo.kcal,
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
+            label: 'Cumplimiento',
           ),
-          _MacroContraMeta(
-            key: ValueKey('${dia.fecha}-proteina'),
-            etiqueta: 'Proteína (P)',
-            unidad: 'g',
-            consumido: consumidos.proteina,
-            objetivo: objetivo.proteina,
-          ),
-          _MacroContraMeta(
-            key: ValueKey('${dia.fecha}-carbos'),
-            etiqueta: 'Carbos (C)',
-            unidad: 'g',
-            consumido: consumidos.carbos,
-            objetivo: objetivo.carbos,
-          ),
-          _MacroContraMeta(
-            key: ValueKey('${dia.fecha}-grasa'),
-            etiqueta: 'Grasa (F)',
-            unidad: 'g',
-            consumido: consumidos.grasa,
-            objetivo: objetivo.grasa,
-          ),
-          for (final momento in Momento.values)
-            ..._bloqueMomento(theme, dia, momento),
         ],
       ),
+      body: _enDia
+          ? ListView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 88),
+              children: [
+                Text(
+                  _fechaEnEspanol(dia.fecha),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text('Contra la Meta', style: theme.textTheme.headlineSmall),
+                const SizedBox(height: 24),
+                _MacroContraMeta(
+                  key: ValueKey('${dia.fecha}-kcal'),
+                  etiqueta: 'Calorías',
+                  unidad: 'kcal',
+                  consumido: consumidos.kcal,
+                  objetivo: objetivo.kcal,
+                ),
+                _MacroContraMeta(
+                  key: ValueKey('${dia.fecha}-proteina'),
+                  etiqueta: 'Proteína (P)',
+                  unidad: 'g',
+                  consumido: consumidos.proteina,
+                  objetivo: objetivo.proteina,
+                ),
+                _MacroContraMeta(
+                  key: ValueKey('${dia.fecha}-carbos'),
+                  etiqueta: 'Carbos (C)',
+                  unidad: 'g',
+                  consumido: consumidos.carbos,
+                  objetivo: objetivo.carbos,
+                ),
+                _MacroContraMeta(
+                  key: ValueKey('${dia.fecha}-grasa'),
+                  etiqueta: 'Grasa (F)',
+                  unidad: 'g',
+                  consumido: consumidos.grasa,
+                  objetivo: objetivo.grasa,
+                ),
+                for (final momento in Momento.values)
+                  ..._bloqueMomento(theme, dia, momento),
+              ],
+            )
+          : _CalendarioMes(
+              mes: _mesMostrado,
+              fechaSeleccionada: _fecha,
+              onElegirDia: _abrirFecha,
+              onMesAnterior: _mesAnterior,
+              onMesSiguiente: _mesSiguiente,
+            ),
     );
   }
 
@@ -160,6 +205,27 @@ class _HomeDiaState extends State<HomeDia> {
     setState(() {
       _renglonAbierto = null;
       _fecha = DateTime(_fecha.year, _fecha.month, _fecha.day + 1);
+    });
+  }
+
+  void _abrirFecha(DateTime fecha) {
+    setState(() {
+      _renglonAbierto = null;
+      _fecha = DateTime(fecha.year, fecha.month, fecha.day);
+      _mesMostrado = DateTime(fecha.year, fecha.month);
+      _destino = _Destino.dia;
+    });
+  }
+
+  void _mesAnterior() {
+    setState(() {
+      _mesMostrado = DateTime(_mesMostrado.year, _mesMostrado.month - 1);
+    });
+  }
+
+  void _mesSiguiente() {
+    setState(() {
+      _mesMostrado = DateTime(_mesMostrado.year, _mesMostrado.month + 1);
     });
   }
 
@@ -305,6 +371,23 @@ class _MacroContraMeta extends StatelessWidget {
   }
 }
 
+const _diasCortos = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
+
+const _meses = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+
 String _diaDeSemana(DateTime fecha) {
   const dias = [
     'lunes',
@@ -318,22 +401,142 @@ String _diaDeSemana(DateTime fecha) {
   return dias[fecha.weekday - 1];
 }
 
+String _nombreMes(DateTime fecha) => _meses[fecha.month - 1];
+
+String _etiquetaDia(DateTime fecha) => '${fecha.day} de ${_nombreMes(fecha)}';
+
 String _fechaEnEspanol(DateTime fecha) {
-  const meses = [
-    'enero',
-    'febrero',
-    'marzo',
-    'abril',
-    'mayo',
-    'junio',
-    'julio',
-    'agosto',
-    'septiembre',
-    'octubre',
-    'noviembre',
-    'diciembre',
-  ];
-  return '${_diaDeSemana(fecha)} ${fecha.day} de ${meses[fecha.month - 1]}';
+  return '${_diaDeSemana(fecha)} ${fecha.day} de ${_nombreMes(fecha)}';
+}
+
+class _CalendarioMes extends StatelessWidget {
+  const _CalendarioMes({
+    required this.mes,
+    required this.fechaSeleccionada,
+    required this.onElegirDia,
+    required this.onMesAnterior,
+    required this.onMesSiguiente,
+  });
+
+  final DateTime mes;
+  final DateTime fechaSeleccionada;
+  final ValueChanged<DateTime> onElegirDia;
+  final VoidCallback onMesAnterior;
+  final VoidCallback onMesSiguiente;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primer = DateTime(mes.year, mes.month, 1);
+    final diasDelMes = DateTime(mes.year, mes.month + 1, 0).day;
+    final huecos = primer.weekday - DateTime.monday;
+    final celdas = <Widget>[
+      for (var i = 0; i < huecos; i++) const SizedBox.shrink(),
+      for (var dia = 1; dia <= diasDelMes; dia++)
+        _celdaDia(theme, DateTime(mes.year, mes.month, dia)),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    IconButton(
+                      tooltip: 'Mes anterior',
+                      onPressed: onMesAnterior,
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Expanded(
+                      child: Text(
+                        '${_nombreMes(mes)} ${mes.year}',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Mes siguiente',
+                      onPressed: onMesSiguiente,
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    for (final nombre in _diasCortos)
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            nombre,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 7,
+                  childAspectRatio: (constraints.maxWidth / 7) / 48,
+                  children: celdas,
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _celdaDia(ThemeData theme, DateTime fecha) {
+    final seleccionado =
+        fecha.year == fechaSeleccionada.year &&
+        fecha.month == fechaSeleccionada.month &&
+        fecha.day == fechaSeleccionada.day;
+    return Semantics(
+      button: true,
+      label: _etiquetaDia(fecha),
+      excludeSemantics: true,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () => onElegirDia(fecha),
+        child: Center(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: seleccionado
+                  ? theme.colorScheme.primaryContainer
+                  : Colors.transparent,
+            ),
+            child: SizedBox.square(
+              dimension: 40,
+              child: Center(
+                child: Text(
+                  '${fecha.day}',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: seleccionado
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                    color: seleccionado
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 String _entero(num valor) => valor.round().toString();
