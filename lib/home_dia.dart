@@ -154,6 +154,7 @@ class _HomeDiaState extends State<HomeDia> {
           : _CalendarioMes(
               mes: _mesMostrado,
               fechaSeleccionada: _fecha,
+              cumplimientoDe: widget.diario.cumplimientoDe,
               onElegirDia: _abrirFecha,
               onMesAnterior: _mesAnterior,
               onMesSiguiente: _mesSiguiente,
@@ -405,6 +406,16 @@ String _nombreMes(DateTime fecha) => _meses[fecha.month - 1];
 
 String _etiquetaDia(DateTime fecha) => '${fecha.day} de ${_nombreMes(fecha)}';
 
+String _etiquetaCumplimiento(DateTime fecha, Cumplimiento cumplimiento) {
+  final dia = _etiquetaDia(fecha);
+  return switch (cumplimiento) {
+    Cumplimiento.ninguno => dia,
+    Cumplimiento.rojo => '$dia, rojo',
+    Cumplimiento.amarillo => '$dia, amarillo',
+    Cumplimiento.verde => '$dia, verde',
+  };
+}
+
 String _fechaEnEspanol(DateTime fecha) {
   return '${_diaDeSemana(fecha)} ${fecha.day} de ${_nombreMes(fecha)}';
 }
@@ -413,6 +424,7 @@ class _CalendarioMes extends StatelessWidget {
   const _CalendarioMes({
     required this.mes,
     required this.fechaSeleccionada,
+    required this.cumplimientoDe,
     required this.onElegirDia,
     required this.onMesAnterior,
     required this.onMesSiguiente,
@@ -420,6 +432,7 @@ class _CalendarioMes extends StatelessWidget {
 
   final DateTime mes;
   final DateTime fechaSeleccionada;
+  final Cumplimiento Function(DateTime fecha) cumplimientoDe;
   final ValueChanged<DateTime> onElegirDia;
   final VoidCallback onMesAnterior;
   final VoidCallback onMesSiguiente;
@@ -501,9 +514,12 @@ class _CalendarioMes extends StatelessWidget {
         fecha.year == fechaSeleccionada.year &&
         fecha.month == fechaSeleccionada.month &&
         fecha.day == fechaSeleccionada.day;
+    final cumplimiento = cumplimientoDe(fecha);
+    final fondo = _fondoCumplimiento(theme.colorScheme, cumplimiento);
+    final sobre = _colorTextoCumplimiento(theme.colorScheme, cumplimiento);
     return Semantics(
       button: true,
-      label: _etiquetaDia(fecha),
+      label: _etiquetaCumplimiento(fecha, cumplimiento),
       excludeSemantics: true,
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -512,9 +528,10 @@ class _CalendarioMes extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: seleccionado
-                  ? theme.colorScheme.primaryContainer
-                  : Colors.transparent,
+              color: fondo ?? Colors.transparent,
+              border: seleccionado
+                  ? Border.all(color: theme.colorScheme.onSurface, width: 2)
+                  : null,
             ),
             child: SizedBox.square(
               dimension: 40,
@@ -525,9 +542,7 @@ class _CalendarioMes extends StatelessWidget {
                     fontWeight: seleccionado
                         ? FontWeight.w600
                         : FontWeight.w400,
-                    color: seleccionado
-                        ? theme.colorScheme.onPrimaryContainer
-                        : theme.colorScheme.onSurface,
+                    color: sobre ?? theme.colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -537,6 +552,24 @@ class _CalendarioMes extends StatelessWidget {
       ),
     );
   }
+}
+
+Color? _fondoCumplimiento(ColorScheme scheme, Cumplimiento cumplimiento) {
+  return switch (cumplimiento) {
+    Cumplimiento.ninguno => null,
+    Cumplimiento.rojo => scheme.error,
+    Cumplimiento.amarillo => const Color(0xFFE8B923),
+    Cumplimiento.verde => scheme.primary,
+  };
+}
+
+Color? _colorTextoCumplimiento(ColorScheme scheme, Cumplimiento cumplimiento) {
+  return switch (cumplimiento) {
+    Cumplimiento.ninguno => null,
+    Cumplimiento.rojo => scheme.onError,
+    Cumplimiento.amarillo => const Color(0xFF1C1B16),
+    Cumplimiento.verde => scheme.onPrimary,
+  };
 }
 
 String _entero(num valor) => valor.round().toString();

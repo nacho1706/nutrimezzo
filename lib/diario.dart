@@ -456,6 +456,20 @@ class Diario {
     return Dia(fecha: fechaDia, macros: macros, comidas: comidas);
   }
 
+  Cumplimiento cumplimientoDe(DateTime fecha) {
+    final dia = this.dia(fecha);
+    if (dia.comidas.isEmpty) {
+      return Cumplimiento.ninguno;
+    }
+    if (dia.macros.kcal > _meta.macros.kcal) {
+      return Cumplimiento.rojo;
+    }
+    if (dia.macros.proteina < _meta.macros.proteina) {
+      return Cumplimiento.amarillo;
+    }
+    return Cumplimiento.verde;
+  }
+
   Momento momentoDeCaptura(DateTime fecha) {
     final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
     Comida? elegida;
@@ -686,6 +700,8 @@ enum Momento {
     extra => 'Extra',
   };
 }
+
+enum Cumplimiento { ninguno, rojo, amarillo, verde }
 
 class Alimento {
   const Alimento({
