@@ -23,6 +23,7 @@ class _HomeDiaState extends State<HomeDia> {
   late DateTime _fecha;
   late DateTime _mesMostrado;
   String? _renglonAbierto;
+  final _momentosCerrados = <Momento>{};
   var _destino = _Destino.dia;
 
   @override
@@ -169,7 +170,7 @@ class _HomeDiaState extends State<HomeDia> {
       ),
     );
     if (mounted) {
-      setState(() {});
+      setState(_podarPliegues);
     }
   }
 
@@ -180,7 +181,7 @@ class _HomeDiaState extends State<HomeDia> {
       ),
     );
     if (mounted) {
-      setState(() {});
+      setState(_podarPliegues);
     }
   }
 
@@ -191,31 +192,43 @@ class _HomeDiaState extends State<HomeDia> {
       ),
     );
     if (mounted) {
-      setState(() {});
+      setState(_podarPliegues);
     }
   }
 
   void _diaAnterior() {
     setState(() {
-      _renglonAbierto = null;
+      _alCambiarFecha();
       _fecha = DateTime(_fecha.year, _fecha.month, _fecha.day - 1);
     });
   }
 
   void _diaSiguiente() {
     setState(() {
-      _renglonAbierto = null;
+      _alCambiarFecha();
       _fecha = DateTime(_fecha.year, _fecha.month, _fecha.day + 1);
     });
   }
 
   void _abrirFecha(DateTime fecha) {
     setState(() {
-      _renglonAbierto = null;
+      _alCambiarFecha();
       _fecha = DateTime(fecha.year, fecha.month, fecha.day);
       _mesMostrado = DateTime(fecha.year, fecha.month);
       _destino = _Destino.dia;
     });
+  }
+
+  void _alCambiarFecha() {
+    _renglonAbierto = null;
+    _momentosCerrados.clear();
+  }
+
+  void _podarPliegues() {
+    final ocupados = {
+      for (final comida in widget.diario.dia(_fecha).comidas) comida.momento,
+    };
+    _momentosCerrados.removeWhere((momento) => !ocupados.contains(momento));
   }
 
   void _mesAnterior() {
@@ -237,6 +250,22 @@ class _HomeDiaState extends State<HomeDia> {
     });
   }
 
+  void _alternarMomento(Momento momento) {
+    setState(() {
+      if (!_momentosCerrados.remove(momento)) {
+        _momentosCerrados.add(momento);
+      }
+    });
+  }
+
+  num _kcalDe(Comida comida) {
+    var total = 0.0;
+    for (final renglon in comida.renglones) {
+      total += widget.diario.macrosDe(renglon).kcal;
+    }
+    return total;
+  }
+
   Future<void> _menuComida(Comida comida, String valor) async {
     if (valor == 'borrar') {
       await widget.diario.eliminarComida(comida.id);
@@ -248,7 +277,7 @@ class _HomeDiaState extends State<HomeDia> {
       );
     }
     if (mounted) {
-      setState(() {});
+      setState(_podarPliegues);
     }
   }
 
@@ -260,13 +289,35 @@ class _HomeDiaState extends State<HomeDia> {
     if (comidas.isEmpty) {
       return const [];
     }
+    final cerrado = _momentosCerrados.contains(momento);
     return [
       const SizedBox(height: 12),
       for (final comida in comidas) ...[
         Row(
           children: [
             Expanded(
-              child: Text(momento.etiqueta, style: theme.textTheme.titleMedium),
+              child: InkWell(
+                onTap: () => _alternarMomento(momento),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          momento.etiqueta,
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ),
+                      Text(
+                        '${_textoNumero(_kcalDe(comida))} kcal',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
             PopupMenuButton<String>(
               onSelected: (valor) => _menuComida(comida, valor),
@@ -284,27 +335,28 @@ class _HomeDiaState extends State<HomeDia> {
             ),
           ],
         ),
-        for (var i = 0; i < comida.renglones.length; i++) ...[
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(comida.renglones[i].nombre),
-            trailing: Text(
-              '${comida.renglones[i].cantidad} g',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontFeatures: const [FontFeature.tabularFigures()],
+        if (!cerrado)
+          for (var i = 0; i < comida.renglones.length; i++) ...[
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(comida.renglones[i].nombre),
+              trailing: Text(
+                '${comida.renglones[i].cantidad} g',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
+              onTap: () => _alternarRenglon(comida, i),
             ),
-            onTap: () => _alternarRenglon(comida, i),
-          ),
-          if (_renglonAbierto == '${comida.id}:$i')
-            entradaRenglon(
-              context,
-              _MacrosDeRenglon(
-                macros: widget.diario.macrosDe(comida.renglones[i]),
+            if (_renglonAbierto == '${comida.id}:$i')
+              entradaRenglon(
+                context,
+                _MacrosDeRenglon(
+                  macros: widget.diario.macrosDe(comida.renglones[i]),
+                ),
+                key: ValueKey('macros-${comida.id}-$i'),
               ),
-              key: ValueKey('macros-${comida.id}-$i'),
-            ),
-        ],
+          ],
       ],
     ];
   }
