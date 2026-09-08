@@ -21,12 +21,16 @@ The set of Renglones for one Momento on one Día. Another capture, or moving a C
 _Avoid_: using comida for the food itself (that is Alimento), a second Comida for the same Momento on the same Día, treating a capture sitting as a separate Comida
 
 **Día**:
-A calendar date in the user's local timezone. Comidas of that date roll up against the Meta.
+A calendar date in the user's local timezone. Comidas of that date roll up against the Meta. That roll-up has a Cumplimiento when the Día has at least one Comida.
 _Avoid_: session, log (as the accounting unit)
 
 **Meta**:
 The daily target: calories, protein, carbs, and fat. There is no per-Momento budget in the MVP.
-_Avoid_: goal, presupuesto por comida
+_Avoid_: goal, presupuesto por comida, the calendar coloring of a Día (that is Cumplimiento)
+
+**Cumplimiento**:
+The judgment of a Día against the Meta as it stands now. A Día with no Comida has none. Otherwise calories are a ceiling and protein is a floor: red if kcal exceed the Meta, else yellow if protein is below the Meta, else green. Carbs and fat do not participate. Changing the Meta rejudges every Día.
+_Avoid_: a second Meta, a stored daily score, a snapshot of the Meta on that date, under-calories as a miss, using carbos or grasa to color a Día
 
 **Momento**:
 The slot a Comida occupies on a Día (desayuno, almuerzo, cena, extra). A Día has at most one Comida per Momento. Not a nutrition target.
