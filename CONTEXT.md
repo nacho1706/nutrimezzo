@@ -47,3 +47,7 @@ _Avoid_: treating regex as a numeric score (“más regex”)
 **Propuesta**:
 One candidate Alimento shown for a Renglón at confirmation. Slot 1 is the best local match when any Patrón hits; slot 2 is the best AI suggestion. If nothing local matches, both slots can be AI. AI is optional: with no usable model, unmatched Renglones offer create-Alimento instead of an AI slot.
 _Avoid_: resultado, opción (as the domain object)
+
+**Cumplimiento**:
+The judgment of a Día against the Meta as it stands now, shown as the month calendar of Días. A Día with no Comida has none. Calories are a ceiling; protein is a floor; carbs and fat do not participate. Changing the Meta rejudges every Día. Tapping a day opens that Día. UI copy for the destinations is Día and Cumplimiento.
+_Avoid_: progreso, anotar (as destination names), menú (as a screen), a second Meta, goal log, stored daily score
