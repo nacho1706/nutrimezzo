@@ -119,8 +119,8 @@ class _HomeDiaState extends State<HomeDia> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text('Contra la Meta', style: theme.textTheme.titleLarge),
-                const SizedBox(height: 12),
+                Text('Contra la Meta', style: theme.textTheme.headlineSmall),
+                const SizedBox(height: 16),
                 AnilloKcal(
                   key: ValueKey('${dia.fecha}-kcal'),
                   consumido: consumidos.kcal,
