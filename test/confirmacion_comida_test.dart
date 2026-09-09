@@ -39,7 +39,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hoy'), findsOneWidget);
-    expect(find.text('97 / 2000 kcal'), findsOneWidget);
+    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
     expect(find.text('Desayuno'), findsOneWidget);
   });
 
@@ -142,7 +142,7 @@ void main() {
     expect(find.text('Hoy'), findsOneWidget);
     expect(diario.alimentos.single.nombre, 'Banana');
     expect(diario.hoy().comidas.single.renglones.single.cantidad, 110);
-    expect(find.textContaining('0 / 2000 kcal'), findsNothing);
+    expect(find.textContaining('0.0 / 2000.0 kcal'), findsNothing);
   });
 
   testWidgets('la Propuesta IA muestra gramos asumidos y se pueden editar', (

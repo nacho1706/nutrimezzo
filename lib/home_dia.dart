@@ -485,7 +485,7 @@ class AnilloKcal extends StatelessWidget {
                     padding: const EdgeInsets.all(20),
                     child: FittedBox(
                       child: Text(
-                        '${_entero(valor)} / ${_entero(objetivo)} kcal',
+                        '${_unDecimal(valor)} / ${_unDecimal(objetivo)} kcal',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontFeatures: const [FontFeature.tabularFigures()],
                         ),
@@ -822,6 +822,8 @@ Color? _colorTextoCumplimiento(ColorScheme scheme, Cumplimiento cumplimiento) {
 
 String _entero(num valor) => valor.round().toString();
 
+String _unDecimal(num valor) => valor.toStringAsFixed(1);
+
 Widget _lineaSeparadora(ThemeData theme, {Key? key, double height = 24}) {
   return Divider(
     key: key,
@@ -874,9 +876,4 @@ Widget _lineaMacro(ThemeData theme, String etiqueta, String valor) {
   );
 }
 
-String _textoNumero(num valor) {
-  if (valor == valor.roundToDouble()) {
-    return valor.round().toString();
-  }
-  return valor.toString();
-}
+String _textoNumero(num valor) => _unDecimal(valor);

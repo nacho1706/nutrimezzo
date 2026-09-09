@@ -116,7 +116,7 @@ void main() {
     expect(find.text('Comida'), findsOneWidget);
     expect(find.text('sábado 5 de septiembre'), findsOneWidget);
     expect(find.text('yogur griego'), findsOneWidget);
-    expect(find.text('97 / 2000 kcal'), findsOneWidget);
+    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
 
     await irACumplimiento(tester);
     await tester.tap(find.bySemanticsLabel('8 de septiembre'));
@@ -125,7 +125,7 @@ void main() {
     expect(find.text('Comida'), findsOneWidget);
     expect(find.text('martes 8 de septiembre'), findsOneWidget);
     expect(find.text('yogur griego'), findsNothing);
-    expect(find.text('0 / 2000 kcal'), findsOneWidget);
+    expect(find.text('0.0 / 2000.0 kcal'), findsOneWidget);
   });
 
   testWidgets('cambiar de mes no cambia la fecha del Día hasta tocar un día', (

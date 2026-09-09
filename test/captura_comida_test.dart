@@ -414,7 +414,7 @@ void main() {
       expect(find.text('Hoy'), findsOneWidget);
       expect(find.text('80 g'), findsOneWidget);
       expect(find.text('100 g'), findsNothing);
-      expect(find.text('78 / 2000 kcal'), findsOneWidget);
+      expect(find.text('77.6 / 2000.0 kcal'), findsOneWidget);
       expect(diario.hoy().comidas.single.renglones.single.cantidad, 80);
       expect(diario.borrador, isNull);
     },
@@ -463,7 +463,7 @@ void main() {
 
     expect(find.text('Hoy'), findsOneWidget);
     expect(find.text('100 g'), findsOneWidget);
-    expect(find.text('97 / 2000 kcal'), findsOneWidget);
+    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
     expect(diario.hoy().comidas.single.renglones.single.cantidad, 100);
 
     await tester.tap(find.text('Comida'));
@@ -528,7 +528,7 @@ void main() {
       expect(find.text('Desayuno'), findsOneWidget);
       expect(find.text('30 g'), findsOneWidget);
       expect(find.text('100 g'), findsNothing);
-      expect(find.text('29 / 2000 kcal'), findsOneWidget);
+      expect(find.text('29.1 / 2000.0 kcal'), findsOneWidget);
 
       await tester.tap(find.text('Comida'));
       await tester.pumpAndSettle();
@@ -539,7 +539,7 @@ void main() {
 
       expect(find.text('Hoy'), findsOneWidget);
       expect(find.text('Desayuno'), findsNothing);
-      expect(find.text('0 / 2000 kcal'), findsOneWidget);
+      expect(find.text('0.0 / 2000.0 kcal'), findsOneWidget);
       expect(diario.hoy().comidas, isEmpty);
     },
   );
