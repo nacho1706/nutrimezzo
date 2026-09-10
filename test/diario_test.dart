@@ -2097,6 +2097,96 @@ void main() {
     expect(persistidos!.single.kilogramos, 72.4);
     expect(persistidos!.single.fecha, DateTime(2026, 9, 6));
   });
+
+  test('una Semana sin Pesajes no tiene Promedio', () {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+
+    expect(diario.promedioDe(DateTime(2026, 9, 6)), isNull);
+  });
+
+  test('una Semana con un Pesaje tiene ese kg de Promedio', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+
+    final promedio = diario.promedioDe(DateTime(2026, 9, 6));
+    expect(promedio, isNotNull);
+    expect(promedio!.kilogramos, 72.4);
+  });
+
+  test('los huecos de la Semana no cuentan como 0 en el Promedio', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 10, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 7), kilogramos: 72.4);
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 9), kilogramos: 71.8);
+
+    expect(diario.promedioDe(DateTime(2026, 9, 10))!.kilogramos, 72.1);
+  });
+
+  test(
+    'el 1 de octubre incluye los Pesajes del lunes y martes de septiembre',
+    () async {
+      final diario = Diario(ahora: () => DateTime(2026, 10, 1, 8));
+      await diario.guardarPesaje(
+        fecha: DateTime(2026, 9, 28),
+        kilogramos: 72.4,
+      );
+      await diario.guardarPesaje(
+        fecha: DateTime(2026, 9, 29),
+        kilogramos: 71.8,
+      );
+
+      expect(diario.promedioDe(DateTime(2026, 10, 1))!.kilogramos, 72.1);
+    },
+  );
+
+  test('sin Promedio en la Semana anterior no hay delta', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+
+    expect(diario.promedioDe(DateTime(2026, 9, 6))!.delta, isNull);
+  });
+
+  test(
+    'si el Promedio bajó respecto de la Semana anterior, el delta es negativo',
+    () async {
+      final diario = Diario(ahora: () => DateTime(2026, 9, 7, 8));
+      await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+      await diario.guardarPesaje(fecha: DateTime(2026, 9, 7), kilogramos: 71);
+
+      final promedio = diario.promedioDe(DateTime(2026, 9, 7));
+      expect(promedio!.kilogramos, 71);
+      expect(promedio.delta, -1.4);
+    },
+  );
+
+  test(
+    'si el Promedio subió respecto de la Semana anterior, el delta es positivo',
+    () async {
+      final diario = Diario(ahora: () => DateTime(2026, 9, 7, 8));
+      await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 71);
+      await diario.guardarPesaje(fecha: DateTime(2026, 9, 7), kilogramos: 72.4);
+
+      expect(diario.promedioDe(DateTime(2026, 9, 7))!.delta, 1.4);
+    },
+  );
+
+  test('si el Promedio empata con la Semana anterior, el delta es 0', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 7, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 7), kilogramos: 72.4);
+
+    expect(diario.promedioDe(DateTime(2026, 9, 7))!.delta, 0);
+  });
+
+  test('el Promedio no es la media de los últimos 7 días', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 10, 1, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 25), kilogramos: 80);
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 28), kilogramos: 72.4);
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 29), kilogramos: 71.8);
+
+    final promedio = diario.promedioDe(DateTime(2026, 10, 1));
+    expect(promedio!.kilogramos, 72.1);
+    expect(promedio.delta, -7.9);
+  });
 }
 
 Diario _diarioConDia({required DateTime fecha, required Macros macrosPor100g}) {

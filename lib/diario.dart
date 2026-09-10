@@ -467,6 +467,37 @@ class Diario {
     return Dia(fecha: fechaDia, macros: macros, comidas: comidas);
   }
 
+  Promedio? promedioDe(DateTime fecha) {
+    final lunes = _lunesDe(fecha);
+    final kilogramos = _promedioDeSemana(lunes);
+    if (kilogramos == null) {
+      return null;
+    }
+    final previos = _promedioDeSemana(lunes.subtract(const Duration(days: 7)));
+    return Promedio(
+      kilogramos: kilogramos,
+      delta: previos == null
+          ? null
+          : _unDecimalRedondeado(kilogramos - previos),
+    );
+  }
+
+  num? _promedioDeSemana(DateTime lunes) {
+    final kilogramos = <num>[];
+    for (var i = 0; i < 7; i++) {
+      final pesaje = pesajeDe(lunes.add(Duration(days: i)));
+      if (pesaje != null) {
+        kilogramos.add(pesaje.kilogramos);
+      }
+    }
+    if (kilogramos.isEmpty) {
+      return null;
+    }
+    return _unDecimalRedondeado(
+      kilogramos.reduce((a, b) => a + b) / kilogramos.length,
+    );
+  }
+
   Pesaje? pesajeDe(DateTime fecha) {
     final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
     for (final pesaje in _pesajes) {
@@ -677,6 +708,13 @@ bool _unDecimalOEntero(num valor) {
   return (decimos - decimos.roundToDouble()).abs() < 1e-8;
 }
 
+DateTime _lunesDe(DateTime fecha) {
+  final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
+  return fechaDia.subtract(Duration(days: fechaDia.weekday - DateTime.monday));
+}
+
+num _unDecimalRedondeado(num valor) => (valor * 10).round() / 10;
+
 String _patronPorDefecto(String nombre) => _normalizar(nombre);
 
 String _normalizar(String texto) {
@@ -850,6 +888,17 @@ class Comida {
       recibidoPorUltimaVez: recibidoPorUltimaVez ?? this.recibidoPorUltimaVez,
     );
   }
+}
+
+class Promedio {
+  const Promedio({required this.kilogramos, this.delta});
+
+  final num kilogramos;
+  final num? delta;
+
+  bool get bajo => delta != null && delta! < 0;
+
+  bool get subio => delta != null && delta! > 0;
 }
 
 class Pesaje {
