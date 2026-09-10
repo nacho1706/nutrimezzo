@@ -101,7 +101,8 @@ class _HomeDiaState extends State<HomeDia> {
         onDestinationSelected: (indice) {
           setState(() {
             _destino = _Destino.values[indice];
-            if (_destino == _Destino.cumplimiento) {
+            if (_destino == _Destino.cumplimiento ||
+                _destino == _Destino.pesaje) {
               _mesMostrado = DateTime(_fecha.year, _fecha.month);
             }
             if (_destino == _Destino.pesaje) {
@@ -214,6 +215,9 @@ class _HomeDiaState extends State<HomeDia> {
     } on ArgumentError {
       return;
     }
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _cargarKilogramos() {
@@ -224,30 +228,49 @@ class _HomeDiaState extends State<HomeDia> {
   }
 
   Widget _cuerpoPesaje(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-      child: Column(
-        children: [
-          const Spacer(),
-          TextField(
-            controller: _kilogramos,
-            textAlign: TextAlign.center,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(suffixText: 'kg'),
+    return Column(
+      children: [
+        const SizedBox.shrink(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+          child: Column(
+            children: [
+              TextField(
+                controller: _kilogramos,
+                textAlign: TextAlign.center,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: const InputDecoration(suffixText: 'kg'),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Mejor en ayunas, a la mañana.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _guardarPesaje,
+                child: const Text('Guardar'),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Mejor en ayunas, a la mañana.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
+        ),
+        Expanded(
+          child: CalendarioMes(
+            mes: _mesMostrado,
+            fechaSeleccionada: _fecha,
+            etiquetaDe: _etiquetaPesaje,
+            celdaDe: _celdaPesaje,
+            onElegirDia: _seleccionarEnPesaje,
+            onMesAnterior: _mesAnterior,
+            onMesSiguiente: _mesSiguiente,
           ),
-          const SizedBox(height: 24),
-          FilledButton(onPressed: _guardarPesaje, child: const Text('Guardar')),
-          const Spacer(),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -307,6 +330,13 @@ class _HomeDiaState extends State<HomeDia> {
     });
   }
 
+  void _seleccionarEnPesaje(DateTime fecha) {
+    setState(() {
+      _fecha = DateTime(fecha.year, fecha.month, fecha.day);
+      _cargarKilogramos();
+    });
+  }
+
   void _alCambiarFecha() {
     _renglonAbierto = null;
     _momentosCerrados.clear();
@@ -329,6 +359,28 @@ class _HomeDiaState extends State<HomeDia> {
     setState(() {
       _mesMostrado = DateTime(_mesMostrado.year, _mesMostrado.month + 1);
     });
+  }
+
+  Widget _celdaPesaje(BuildContext context, DateTime fecha) {
+    final pesaje = widget.diario.pesajeDe(fecha);
+    if (pesaje == null) {
+      return const SizedBox.shrink();
+    }
+    return Center(
+      child: Text(
+        _unDecimal(pesaje.kilogramos),
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+    );
+  }
+
+  String _etiquetaPesaje(DateTime fecha) {
+    final dia = _etiquetaDia(fecha);
+    final pesaje = widget.diario.pesajeDe(fecha);
+    if (pesaje == null) {
+      return dia;
+    }
+    return '$dia, ${_unDecimal(pesaje.kilogramos)} kg';
   }
 
   Widget _celdaCumplimiento(BuildContext context, DateTime fecha) {
