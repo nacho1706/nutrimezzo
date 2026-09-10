@@ -14,6 +14,7 @@ const _claveApi = 'byok.claveApi';
 const _idModelo = 'byok.idModelo';
 const _alimentos = 'alimentos';
 const _comidas = 'comidas';
+const _pesajes = 'pesajes';
 
 Future<Diario> abrirDiario({DateTime Function()? ahora}) async {
   final prefs = await SharedPreferences.getInstance();
@@ -24,10 +25,11 @@ Future<Diario> abrirDiario({DateTime Function()? ahora}) async {
     byok: _byokDe(prefs),
     alimentos: _alimentosDe(prefs),
     comidas: _comidasDe(prefs),
+    pesajes: _pesajesDe(prefs),
     busquedaIA: BusquedaIAOpenAI(byok: () => diario.byok),
     persistir: (meta, byok) => _guardar(prefs, meta, byok),
-    persistirDiario: (alimentos, comidas) =>
-        _guardarDiario(prefs, alimentos, comidas),
+    persistirDiario: (alimentos, comidas, pesajes) =>
+        _guardarDiario(prefs, alimentos, comidas, pesajes),
   );
   return diario;
 }
@@ -76,6 +78,15 @@ List<Comida> _comidasDe(SharedPreferences prefs) {
   return [for (final item in lista) _comidaDe(item as Map<String, dynamic>)];
 }
 
+List<Pesaje> _pesajesDe(SharedPreferences prefs) {
+  final crudo = prefs.getString(_pesajes);
+  if (crudo == null || crudo.isEmpty) {
+    return const [];
+  }
+  final lista = jsonDecode(crudo) as List<dynamic>;
+  return [for (final item in lista) _pesajeDe(item as Map<String, dynamic>)];
+}
+
 Alimento _alimentoDe(Map<String, dynamic> json) {
   return Alimento(
     id: json['id'] as String,
@@ -109,6 +120,14 @@ Renglon _renglonDe(Map<String, dynamic> json) {
   );
 }
 
+Pesaje _pesajeDe(Map<String, dynamic> json) {
+  final fecha = DateTime.parse(json['fecha'] as String);
+  return Pesaje(
+    fecha: DateTime(fecha.year, fecha.month, fecha.day),
+    kilogramos: json['kilogramos'] as num,
+  );
+}
+
 Macros _macrosDe(Map<String, dynamic> json) {
   return Macros(
     kcal: json['kcal'] as num,
@@ -132,6 +151,7 @@ Future<void> _guardarDiario(
   SharedPreferences prefs,
   List<Alimento> alimentos,
   List<Comida> comidas,
+  List<Pesaje> pesajes,
 ) async {
   await prefs.setString(
     _alimentos,
@@ -140,6 +160,10 @@ Future<void> _guardarDiario(
   await prefs.setString(
     _comidas,
     jsonEncode([for (final comida in comidas) _comidaJson(comida)]),
+  );
+  await prefs.setString(
+    _pesajes,
+    jsonEncode([for (final pesaje in pesajes) _pesajeJson(pesaje)]),
   );
 }
 
@@ -176,5 +200,14 @@ Map<String, Object?> _renglonJson(Renglon renglon) {
     'nombre': renglon.nombre,
     'cantidad': renglon.cantidad,
     'alimentoId': renglon.alimentoId,
+  };
+}
+
+Map<String, Object?> _pesajeJson(Pesaje pesaje) {
+  final fecha = pesaje.fecha;
+  return {
+    'fecha':
+        '${fecha.year.toString().padLeft(4, '0')}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}',
+    'kilogramos': pesaje.kilogramos,
   };
 }

@@ -759,7 +759,7 @@ void main() {
     List<Comida>? comidas;
     final primero = Diario(
       ahora: () => DateTime(2026, 9, 6, 8),
-      persistirDiario: (catalogo, registradas) async {
+      persistirDiario: (catalogo, registradas, pesajes) async {
         alimentos = List.of(catalogo);
         comidas = List.of(registradas);
       },
@@ -1996,6 +1996,106 @@ void main() {
     ]);
 
     expect(diario.momentoDeCaptura(DateTime(2026, 9, 6)), Momento.desayuno);
+  });
+
+  test('guardar un Pesaje lo deja consultable por esa fecha', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.guardarPesaje(
+      fecha: DateTime(2026, 9, 6, 8),
+      kilogramos: 72.4,
+    );
+
+    final pesaje = diario.pesajeDe(DateTime(2026, 9, 6));
+    expect(pesaje, isNotNull);
+    expect(pesaje!.kilogramos, 72.4);
+    expect(pesaje.fecha, DateTime(2026, 9, 6));
+  });
+
+  test('guardar de nuevo el mismo Día reemplaza el kg', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 71);
+
+    expect(diario.pesajeDe(DateTime(2026, 9, 6))!.kilogramos, 71);
+  });
+
+  test('un Pesaje de 0 o negativo no se guarda', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+
+    expect(
+      () => diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 0),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(
+      () => diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: -1),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(diario.pesajeDe(DateTime(2026, 9, 6)), isNull);
+  });
+
+  test('72.45 no se redondea: el Pesaje anterior queda', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72);
+
+    expect(
+      () =>
+          diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.45),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(diario.pesajeDe(DateTime(2026, 9, 6))!.kilogramos, 72);
+  });
+
+  test(
+    'se puede guardar un Pesaje de hoy, de un Día pasado y de uno futuro',
+    () async {
+      final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+      await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72);
+      await diario.guardarPesaje(fecha: DateTime(2026, 9, 5), kilogramos: 71.5);
+      await diario.guardarPesaje(fecha: DateTime(2026, 9, 8), kilogramos: 73);
+
+      expect(diario.pesajeDe(DateTime(2026, 9, 6))!.kilogramos, 72);
+      expect(diario.pesajeDe(DateTime(2026, 9, 5))!.kilogramos, 71.5);
+      expect(diario.pesajeDe(DateTime(2026, 9, 8))!.kilogramos, 73);
+    },
+  );
+
+  test('un Pesaje sin Comida deja el Cumplimiento en ninguno', () async {
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+
+    expect(diario.cumplimientoDe(DateTime(2026, 9, 6)), Cumplimiento.ninguno);
+  });
+
+  test('una Comida pinta Cumplimiento aunque no haya Pesaje, y el Pesaje no lo cambia', () async {
+    final diario = _diarioConDia(
+      fecha: DateTime(2026, 9, 5),
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    expect(diario.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.amarillo);
+
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 5), kilogramos: 72.4);
+
+    expect(diario.cumplimientoDe(DateTime(2026, 9, 5)), Cumplimiento.amarillo);
+  });
+
+  test('persistir el Diario recibe los Pesajes, no un Promedio', () async {
+    List<Pesaje>? persistidos;
+    final diario = Diario(
+      ahora: () => DateTime(2026, 9, 6, 8),
+      persistirDiario: (alimentos, comidas, pesajes) async {
+        persistidos = List.of(pesajes);
+      },
+    );
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+
+    expect(persistidos, hasLength(1));
+    expect(persistidos!.single.kilogramos, 72.4);
+    expect(persistidos!.single.fecha, DateTime(2026, 9, 6));
   });
 }
 

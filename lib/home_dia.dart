@@ -18,7 +18,7 @@ class HomeDia extends StatefulWidget {
   State<HomeDia> createState() => _HomeDiaState();
 }
 
-enum _Destino { dia, cumplimiento }
+enum _Destino { dia, cumplimiento, pesaje }
 
 class _HomeDiaState extends State<HomeDia> {
   late DateTime _fecha;
@@ -26,12 +26,19 @@ class _HomeDiaState extends State<HomeDia> {
   String? _renglonAbierto;
   final _momentosCerrados = <Momento>{};
   var _destino = _Destino.dia;
+  final _kilogramos = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _fecha = widget.diario.hoy().fecha;
     _mesMostrado = DateTime(_fecha.year, _fecha.month);
+  }
+
+  @override
+  void dispose() {
+    _kilogramos.dispose();
+    super.dispose();
   }
 
   bool get _esHoy {
@@ -51,9 +58,11 @@ class _HomeDiaState extends State<HomeDia> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          _enDia ? (_esHoy ? 'Hoy' : _diaDeSemana(dia.fecha)) : 'Cumplimiento',
-        ),
+        title: Text(switch (_destino) {
+          _Destino.dia => _esHoy ? 'Hoy' : _diaDeSemana(dia.fecha),
+          _Destino.cumplimiento => 'Cumplimiento',
+          _Destino.pesaje => 'Pesaje',
+        }),
         leading: _enDia
             ? IconButton(
                 tooltip: 'Día anterior',
@@ -95,6 +104,9 @@ class _HomeDiaState extends State<HomeDia> {
             if (_destino == _Destino.cumplimiento) {
               _mesMostrado = DateTime(_fecha.year, _fecha.month);
             }
+            if (_destino == _Destino.pesaje) {
+              _cargarKilogramos();
+            }
           });
         },
         destinations: const [
@@ -108,78 +120,134 @@ class _HomeDiaState extends State<HomeDia> {
             selectedIcon: Icon(Icons.calendar_month),
             label: 'Cumplimiento',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.monitor_weight_outlined),
+            selectedIcon: Icon(Icons.monitor_weight),
+            label: 'Pesaje',
+          ),
         ],
       ),
-      body: _enDia
-          ? ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 88),
-              children: [
-                Text(
-                  _fechaEnEspanol(dia.fecha),
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+      body: switch (_destino) {
+        _Destino.dia => SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 88),
+          child: Column(
+            children: [
+              Text(
+                _fechaEnEspanol(dia.fecha),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(height: 8),
-                Text('Contra la Meta', style: theme.textTheme.headlineSmall),
-                const SizedBox(height: 16),
-                AnilloKcal(
-                  key: ValueKey('${dia.fecha}-kcal'),
-                  consumido: consumidos.kcal,
-                  objetivo: objetivo.kcal,
-                ),
+              ),
+              const SizedBox(height: 8),
+              Text('Contra la Meta', style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 16),
+              AnilloKcal(
+                key: ValueKey('${dia.fecha}-kcal'),
+                consumido: consumidos.kcal,
+                objetivo: objetivo.kcal,
+              ),
+              _lineaSeparadora(
+                theme,
+                key: const Key('separador-anillo-barras'),
+              ),
+              _MacroContraMeta(
+                key: ValueKey('${dia.fecha}-proteina'),
+                etiqueta: 'Proteína (P)',
+                unidad: 'g',
+                consumido: consumidos.proteina,
+                objetivo: objetivo.proteina,
+              ),
+              _MacroContraMeta(
+                key: ValueKey('${dia.fecha}-carbos'),
+                etiqueta: 'Carbos (C)',
+                unidad: 'g',
+                consumido: consumidos.carbos,
+                objetivo: objetivo.carbos,
+              ),
+              _MacroContraMeta(
+                key: ValueKey('${dia.fecha}-grasa'),
+                etiqueta: 'Grasa (F)',
+                unidad: 'g',
+                consumido: consumidos.grasa,
+                objetivo: objetivo.grasa,
+              ),
+              if (dia.comidas.isNotEmpty)
                 _lineaSeparadora(
                   theme,
-                  key: const Key('separador-anillo-barras'),
+                  key: const Key('separador-meta-momentos'),
+                  height: 24,
                 ),
-                _MacroContraMeta(
-                  key: ValueKey('${dia.fecha}-proteina'),
-                  etiqueta: 'Proteína (P)',
-                  unidad: 'g',
-                  consumido: consumidos.proteina,
-                  objetivo: objetivo.proteina,
+              for (var i = 0; i < Momento.values.length; i++)
+                ..._bloqueMomento(
+                  theme,
+                  dia,
+                  Momento.values[i],
+                  separarArriba: _hayMomentoOcupadoAntes(dia, i),
                 ),
-                _MacroContraMeta(
-                  key: ValueKey('${dia.fecha}-carbos'),
-                  etiqueta: 'Carbos (C)',
-                  unidad: 'g',
-                  consumido: consumidos.carbos,
-                  objetivo: objetivo.carbos,
-                ),
-                _MacroContraMeta(
-                  key: ValueKey('${dia.fecha}-grasa'),
-                  etiqueta: 'Grasa (F)',
-                  unidad: 'g',
-                  consumido: consumidos.grasa,
-                  objetivo: objetivo.grasa,
-                ),
-                if (dia.comidas.isNotEmpty)
-                  _lineaSeparadora(
-                    theme,
-                    key: const Key('separador-meta-momentos'),
-                    height: 24,
-                  ),
-                for (var i = 0; i < Momento.values.length; i++)
-                  ..._bloqueMomento(
-                    theme,
-                    dia,
-                    Momento.values[i],
-                    separarArriba: _hayMomentoOcupadoAntes(dia, i),
-                  ),
-              ],
-            )
-          : CalendarioMes(
-              mes: _mesMostrado,
-              fechaSeleccionada: _fecha,
-              etiquetaDe: (fecha) => _etiquetaCumplimiento(
-                fecha,
-                widget.diario.cumplimientoDe(fecha),
-              ),
-              celdaDe: _celdaCumplimiento,
-              onElegirDia: _abrirFecha,
-              onMesAnterior: _mesAnterior,
-              onMesSiguiente: _mesSiguiente,
+            ],
+          ),
+        ),
+        _Destino.cumplimiento => CalendarioMes(
+          mes: _mesMostrado,
+          fechaSeleccionada: _fecha,
+          etiquetaDe: (fecha) => _etiquetaCumplimiento(
+            fecha,
+            widget.diario.cumplimientoDe(fecha),
+          ),
+          celdaDe: _celdaCumplimiento,
+          onElegirDia: _abrirFecha,
+          onMesAnterior: _mesAnterior,
+          onMesSiguiente: _mesSiguiente,
+        ),
+        _Destino.pesaje => _cuerpoPesaje(theme),
+      },
+    );
+  }
+
+  Future<void> _guardarPesaje() async {
+    final kilogramos = _parsearKilogramos(_kilogramos.text);
+    if (kilogramos == null) {
+      return;
+    }
+    try {
+      await widget.diario.guardarPesaje(fecha: _fecha, kilogramos: kilogramos);
+    } on ArgumentError {
+      return;
+    }
+  }
+
+  void _cargarKilogramos() {
+    final pesaje = widget.diario.pesajeDe(_fecha);
+    _kilogramos.text = pesaje == null
+        ? ''
+        : _textoKilogramos(pesaje.kilogramos);
+  }
+
+  Widget _cuerpoPesaje(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+      child: Column(
+        children: [
+          const Spacer(),
+          TextField(
+            controller: _kilogramos,
+            textAlign: TextAlign.center,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(suffixText: 'kg'),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Mejor en ayunas, a la mañana.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          FilledButton(onPressed: _guardarPesaje, child: const Text('Guardar')),
+          const Spacer(),
+        ],
+      ),
     );
   }
 
@@ -354,10 +422,7 @@ class _HomeDiaState extends State<HomeDia> {
     final cerrado = _momentosCerrados.contains(momento);
     return [
       if (separarArriba)
-        _lineaSeparadora(
-          theme,
-          key: Key('separador-momentos-${momento.name}'),
-        )
+        _lineaSeparadora(theme, key: Key('separador-momentos-${momento.name}'))
       else
         const SizedBox(height: 4),
       Material(
@@ -755,3 +820,18 @@ Widget _lineaMacro(ThemeData theme, String etiqueta, String valor) {
 }
 
 String _textoNumero(num valor) => _unDecimal(valor);
+
+num? _parsearKilogramos(String texto) {
+  final limpio = texto.trim().replaceAll(',', '.');
+  if (limpio.isEmpty) {
+    return null;
+  }
+  return num.tryParse(limpio);
+}
+
+String _textoKilogramos(num valor) {
+  if (valor == valor.roundToDouble()) {
+    return valor.round().toString();
+  }
+  return valor.toString();
+}

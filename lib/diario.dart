@@ -6,8 +6,13 @@ class Diario {
     PuertoBusquedaIA? busquedaIA,
     Iterable<Alimento> alimentos = const [],
     Iterable<Comida> comidas = const [],
+    Iterable<Pesaje> pesajes = const [],
     Future<void> Function(Meta meta, Byok byok)? persistir,
-    Future<void> Function(List<Alimento> alimentos, List<Comida> comidas)?
+    Future<void> Function(
+      List<Alimento> alimentos,
+      List<Comida> comidas,
+      List<Pesaje> pesajes,
+    )?
     persistirDiario,
   }) : _ahora = ahora ?? DateTime.now,
        _meta = meta ?? Meta.porDefecto,
@@ -17,6 +22,7 @@ class Diario {
        _busquedaIA = busquedaIA,
        _alimentos = List.of(alimentos),
        _comidas = List.of(comidas),
+       _pesajes = List.of(pesajes),
        // ignore: prefer_initializing_formals
        _persistirDiario = persistirDiario,
        // Public name `persistir`; the field stays private.
@@ -47,13 +53,18 @@ class Diario {
   final DateTime Function() _ahora;
   final PuertoBusquedaIA? _busquedaIA;
   final Future<void> Function(Meta meta, Byok byok)? _persistir;
-  final Future<void> Function(List<Alimento> alimentos, List<Comida> comidas)?
+  final Future<void> Function(
+    List<Alimento> alimentos,
+    List<Comida> comidas,
+    List<Pesaje> pesajes,
+  )?
   _persistirDiario;
   Meta _meta;
   Byok _byok;
   Comida? _borrador;
   final List<Alimento> _alimentos;
   final List<Comida> _comidas;
+  final List<Pesaje> _pesajes;
   List<RenglonResuelto> _resoluciones = const [];
   var _siguienteId = 0;
   var _siguienteComidaId = 0;
@@ -456,6 +467,34 @@ class Diario {
     return Dia(fecha: fechaDia, macros: macros, comidas: comidas);
   }
 
+  Pesaje? pesajeDe(DateTime fecha) {
+    final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
+    for (final pesaje in _pesajes) {
+      if (pesaje.fecha == fechaDia) {
+        return pesaje;
+      }
+    }
+    return null;
+  }
+
+  Future<void> guardarPesaje({
+    required DateTime fecha,
+    required num kilogramos,
+  }) async {
+    if (kilogramos <= 0 || !_unDecimalOEntero(kilogramos)) {
+      throw ArgumentError('kilogramos');
+    }
+    final fechaDia = DateTime(fecha.year, fecha.month, fecha.day);
+    final siguiente = Pesaje(fecha: fechaDia, kilogramos: kilogramos);
+    final indice = _pesajes.indexWhere((pesaje) => pesaje.fecha == fechaDia);
+    if (indice < 0) {
+      _pesajes.add(siguiente);
+    } else {
+      _pesajes[indice] = siguiente;
+    }
+    await _escribirDiario();
+  }
+
   Cumplimiento cumplimientoDe(DateTime fecha) {
     final dia = this.dia(fecha);
     if (dia.comidas.isEmpty) {
@@ -534,6 +573,7 @@ class Diario {
     await _persistirDiario?.call(
       List.unmodifiable(_alimentos),
       List.unmodifiable(_comidas),
+      List.unmodifiable(_pesajes),
     );
   }
 
@@ -630,6 +670,11 @@ int _numeroDeComidaId(String id) {
     return 0;
   }
   return int.tryParse(id.substring(1)) ?? 0;
+}
+
+bool _unDecimalOEntero(num valor) {
+  final decimos = valor * 10;
+  return (decimos - decimos.roundToDouble()).abs() < 1e-8;
 }
 
 String _patronPorDefecto(String nombre) => _normalizar(nombre);
@@ -805,6 +850,13 @@ class Comida {
       recibidoPorUltimaVez: recibidoPorUltimaVez ?? this.recibidoPorUltimaVez,
     );
   }
+}
+
+class Pesaje {
+  const Pesaje({required this.fecha, required this.kilogramos});
+
+  final DateTime fecha;
+  final num kilogramos;
 }
 
 class Dia {

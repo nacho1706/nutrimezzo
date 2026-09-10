@@ -234,4 +234,81 @@ void main() {
       );
     },
   );
+
+  test('los Pesajes se leen al reabrir el almacén', () async {
+    final primero = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+    await primero.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+
+    final reabierto = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+    expect(reabierto.pesajeDe(DateTime(2026, 9, 6))!.kilogramos, 72.4);
+    expect(
+      reabierto.pesajeDe(DateTime(2026, 9, 6))!.fecha,
+      DateTime(2026, 9, 6),
+    );
+  });
+
+  test('reabrir el almacén no guarda Promedio ni una Meta de Pesaje', () async {
+    final primero = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+    await primero.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+
+    final prefs = await SharedPreferences.getInstance();
+    final claves = prefs.getKeys();
+    expect(
+      claves.where((clave) => clave.toLowerCase().contains('promedio')),
+      isEmpty,
+    );
+    expect(
+      claves.where((clave) => clave.toLowerCase().contains('flecha')),
+      isEmpty,
+    );
+    expect(
+      claves.where((clave) => clave.toLowerCase().contains('arrow')),
+      isEmpty,
+    );
+    expect(prefs.getDouble('meta.kcal'), isNull);
+    expect(
+      claves.where(
+        (clave) =>
+            clave.startsWith('meta.') &&
+            clave != 'meta.kcal' &&
+            clave != 'meta.proteina' &&
+            clave != 'meta.carbos' &&
+            clave != 'meta.grasa',
+      ),
+      isEmpty,
+    );
+
+    final reabierto = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+    expect(reabierto.meta.macros.kcal, 2000);
+    expect(reabierto.pesajeDe(DateTime(2026, 9, 6))!.kilogramos, 72.4);
+  });
+
+  test('guardar un Pesaje no borra las Comidas al reabrir', () async {
+    final primero = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+    await primero.crearAlimento(
+      nombre: 'yogur griego',
+      macrosPor100g: const Macros(
+        kcal: 97,
+        proteina: 10,
+        carbos: 3.6,
+        grasa: 5,
+      ),
+    );
+    primero.redactarComida(
+      momento: Momento.desayuno,
+      notas: '100g yogur griego',
+    );
+    await primero.listo();
+    await primero.confirmar([
+      EleccionRenglon(
+        cantidad: 100,
+        propuesta: primero.resoluciones.single.propuestas.single,
+      ),
+    ]);
+    await primero.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+
+    final reabierto = await abrirDiario(ahora: () => DateTime(2026, 9, 6, 8));
+    expect(reabierto.hoy().macros.kcal, 97);
+    expect(reabierto.pesajeDe(DateTime(2026, 9, 6))!.kilogramos, 72.4);
+  });
 }
