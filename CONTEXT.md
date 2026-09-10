@@ -1,6 +1,6 @@
 # NutriMezzo
 
-Personal calorie and macro tracker. A line of natural language is resolved to an Alimento; macros come from that Alimento, not from a fresh AI invention on every log.
+Personal calorie, macro, and Pesaje tracker. A line of natural language is resolved to an Alimento; macros come from that Alimento, not from a fresh AI invention on every log.
 
 ## Language
 
@@ -21,7 +21,7 @@ The set of Renglones for one Momento on one Día. Another capture, or moving a C
 _Avoid_: using comida for the food itself (that is Alimento), a second Comida for the same Momento on the same Día, treating a capture sitting as a separate Comida
 
 **Día**:
-A calendar date in the user's local timezone. Comidas of that date roll up against the Meta. That roll-up has a Cumplimiento when the Día has at least one Comida.
+A calendar date in the user's local timezone. Comidas of that date roll up against the Meta. That roll-up has a Cumplimiento when the Día has at least one Comida. A Día may also have a Pesaje; that does not create a Cumplimiento.
 _Avoid_: session, log (as the accounting unit)
 
 **Meta**:
@@ -29,8 +29,20 @@ The daily target: calories, protein, carbs, and fat. There is no per-Momento bud
 _Avoid_: goal, presupuesto por comida, the calendar coloring of a Día (that is Cumplimiento)
 
 **Cumplimiento**:
-The judgment of a Día against the Meta as it stands now. A Día with no Comida has none. Otherwise calories are a ceiling and protein is a floor: red if kcal exceed the Meta, else yellow if protein is below the Meta, else green. Carbs and fat do not participate. Changing the Meta rejudges every Día.
-_Avoid_: a second Meta, a stored daily score, a snapshot of the Meta on that date, under-calories as a miss, using carbos or grasa to color a Día
+The judgment of a Día against the Meta as it stands now. A Día with no Comida has none. Otherwise calories are a ceiling and protein is a floor: red if kcal exceed the Meta, else yellow if protein is below the Meta, else green. Carbs and fat do not participate. Changing the Meta rejudges every Día. A Pesaje is not a Cumplimiento.
+_Avoid_: a second Meta, a stored daily score, a snapshot of the Meta on that date, under-calories as a miss, using carbos or grasa to color a Día, coloring a Día from weight
+
+**Pesaje**:
+A recorded body mass in kilograms for one Día, greater than zero, to one decimal. A Día has at most one; recording again that date replaces it. Once a Día has a Pesaje, it is not cleared — only replaced. The Día may be today, past, or future. Independent of Comidas: a Día may have a Pesaje with no Comida, and vice versa. It is not Macros and not a Meta. Also the destination that shows those readings: the month cells are the mass, not a Cumplimiento color. The Promedio there is of the Semana that contains the selected Día.
+_Avoid_: comida, cumplimiento, ayuno as a tracked state, treating weight as a nutrition target, a second Pesaje on the same Día, progreso, anotar, menú (as destination names), pounds, coloring a Pesaje day as Cumplimiento, deleting a Pesaje back to none, treating a future Pesaje as a Meta, zero or negative as a Pesaje
+
+**Semana**:
+Monday through Sunday in the user's local timezone — the same week the month calendar uses. It may span two months; a Promedio is not clipped to the displayed month. A Promedio is always of this window, never a rolling seven Días ending today.
+_Avoid_: week starting Sunday, last 7 days, ISO week as a different object, clipping a Semana to one calendar month
+
+**Promedio**:
+The arithmetic mean of the Pesajes recorded in one Semana. A Semana with no Pesaje has none. Días without a Pesaje are omitted, not zero. Compared to the previous Semana only when both have a Promedio: a drop is down (green), a rise is up (red), a tie has no arrow. There is no Meta of weight.
+_Avoid_: filling gaps with zero, comparing to a rolling 7-day mean, treating Promedio as Cumplimiento, a Meta of weight, inventing an arrow when the previous Semana has no Promedio
 
 **Momento**:
 The slot a Comida occupies on a Día (desayuno, almuerzo, cena, extra). A Día has at most one Comida per Momento. Not a nutrition target.
@@ -49,5 +61,5 @@ One candidate Alimento shown for a Renglón at confirmation. Slot 1 is the best 
 _Avoid_: resultado, opción (as the domain object)
 
 **Cumplimiento**:
-The judgment of a Día against the Meta as it stands now, shown as the month calendar of Días. A Día with no Comida has none. Calories are a ceiling; protein is a floor; carbs and fat do not participate. Changing the Meta rejudges every Día. Tapping a day opens that Día. UI copy for the destinations is Día and Cumplimiento.
+The judgment of a Día against the Meta as it stands now, shown as the month calendar of Días. A Día with no Comida has none. Calories are a ceiling; protein is a floor; carbs and fat do not participate. Changing the Meta rejudges every Día. Tapping a day in Cumplimiento opens that Día. Tapping a day in Pesaje selects it and stays on Pesaje. The selected Día is shared across Día, Cumplimiento, and Pesaje. UI copy for the destinations is Día, Cumplimiento, and Pesaje.
 _Avoid_: progreso, anotar (as destination names), menú (as a screen), a second Meta, goal log, stored daily score
