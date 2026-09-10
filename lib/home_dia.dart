@@ -214,6 +214,9 @@ class _HomeDiaState extends State<HomeDia> {
     } on ArgumentError {
       return;
     }
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _cargarKilogramos() {
@@ -224,10 +227,12 @@ class _HomeDiaState extends State<HomeDia> {
   }
 
   Widget _cuerpoPesaje(ThemeData theme) {
+    final promedio = widget.diario.promedioDe(_fecha);
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
       child: Column(
         children: [
+          if (promedio != null) _cuerpoPromedio(theme, promedio),
           const Spacer(),
           TextField(
             controller: _kilogramos,
@@ -246,6 +251,42 @@ class _HomeDiaState extends State<HomeDia> {
           const SizedBox(height: 24),
           FilledButton(onPressed: _guardarPesaje, child: const Text('Guardar')),
           const Spacer(),
+        ],
+      ),
+    );
+  }
+
+  Widget _cuerpoPromedio(ThemeData theme, Promedio promedio) {
+    final kg = _unDecimal(promedio.kilogramos);
+    final cuanto = promedio.delta == null
+        ? null
+        : _unDecimal(promedio.delta!.abs());
+    final etiqueta = promedio.bajo
+        ? 'Promedio $kg kg, bajó $cuanto kg'
+        : promedio.subio
+        ? 'Promedio $kg kg, subió $cuanto kg'
+        : 'Promedio $kg kg';
+    return Semantics(
+      label: etiqueta,
+      excludeSemantics: true,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('Promedio', style: theme.textTheme.titleMedium),
+          const SizedBox(width: 8),
+          Text('$kg kg', style: theme.textTheme.titleMedium),
+          if (promedio.bajo || promedio.subio) ...[
+            Tooltip(
+              message: promedio.bajo ? 'bajó $cuanto kg' : 'subió $cuanto kg',
+              child: Icon(
+                promedio.bajo ? Icons.arrow_downward : Icons.arrow_upward,
+                color: promedio.bajo
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.error,
+              ),
+            ),
+            Text('$cuanto kg', style: theme.textTheme.titleMedium),
+          ],
         ],
       ),
     );

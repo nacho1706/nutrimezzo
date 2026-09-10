@@ -322,4 +322,174 @@ void main() {
       '72.4',
     );
   });
+
+  testWidgets(
+    'el Promedio queda arriba del campo y es la media de la Semana',
+    (tester) async {
+      desactivarAnimaciones(tester);
+      final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+      await diario.guardarPesaje(fecha: DateTime(2026, 8, 31), kilogramos: 72.4);
+      await diario.guardarPesaje(fecha: DateTime(2026, 9, 2), kilogramos: 71.8);
+      await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+      await irAPesaje(tester);
+
+      final promedio = find.bySemanticsLabel('Promedio 72.1 kg');
+      expect(promedio, findsOneWidget);
+      expect(
+        tester.getTopLeft(promedio).dy,
+        lessThan(tester.getTopLeft(find.byType(TextField)).dy),
+      );
+    },
+  );
+
+  testWidgets('una Semana sin Pesajes no muestra Promedio ni 0 kg', (
+    tester,
+  ) async {
+    desactivarAnimaciones(tester);
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+    await irAPesaje(tester);
+
+    expect(find.textContaining('Promedio'), findsNothing);
+    expect(find.textContaining('0.0 kg'), findsNothing);
+    expect(find.textContaining('0 kg'), findsNothing);
+  });
+
+  testWidgets('Guardar actualiza el Promedio sin salir de Pesaje', (
+    tester,
+  ) async {
+    desactivarAnimaciones(tester);
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 8, 31), kilogramos: 72.4);
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+    await irAPesaje(tester);
+    expect(find.bySemanticsLabel('Promedio 72.4 kg'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '71.8');
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(AppBar, 'Pesaje'), findsOneWidget);
+    expect(find.bySemanticsLabel('Promedio 72.1 kg'), findsOneWidget);
+  });
+
+  testWidgets('cambiar el Día mueve el Promedio a esa Semana', (tester) async {
+    desactivarAnimaciones(tester);
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 7), kilogramos: 71);
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+    await irAPesaje(tester);
+    expect(find.bySemanticsLabel('Promedio 72.4 kg'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(NavigationBar),
+        matching: find.text('Día'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Día siguiente'));
+    await tester.pump();
+    await irAPesaje(tester);
+
+    expect(
+      find.bySemanticsLabel('Promedio 71.0 kg, bajó 1.4 kg'),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel('Promedio 72.4 kg'), findsNothing);
+  });
+
+  testWidgets('si el Promedio bajó, hay flecha verde y cuánto bajó', (
+    tester,
+  ) async {
+    desactivarAnimaciones(tester);
+    final diario = Diario(ahora: () => DateTime(2026, 9, 7, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 7), kilogramos: 71);
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+    await irAPesaje(tester);
+
+    expect(
+      find.bySemanticsLabel('Promedio 71.0 kg, bajó 1.4 kg'),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('bajó 1.4 kg'), findsOneWidget);
+    expect(find.text('1.4 kg'), findsOneWidget);
+  });
+
+  testWidgets('si el Promedio subió, hay flecha roja y cuánto subió', (
+    tester,
+  ) async {
+    desactivarAnimaciones(tester);
+    final diario = Diario(ahora: () => DateTime(2026, 9, 7, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 71);
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 7), kilogramos: 72.4);
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+    await irAPesaje(tester);
+
+    expect(
+      find.bySemanticsLabel('Promedio 72.4 kg, subió 1.4 kg'),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('subió 1.4 kg'), findsOneWidget);
+    expect(find.byTooltip('bajó 1.4 kg'), findsNothing);
+  });
+
+  testWidgets('si el Promedio empata, no hay flecha', (tester) async {
+    desactivarAnimaciones(tester);
+    final diario = Diario(ahora: () => DateTime(2026, 9, 7, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 7), kilogramos: 72.4);
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+    await irAPesaje(tester);
+
+    expect(find.bySemanticsLabel('Promedio 72.4 kg'), findsOneWidget);
+    expect(find.byTooltip('bajó 0.0 kg'), findsNothing);
+    expect(find.byTooltip('subió 0.0 kg'), findsNothing);
+    expect(find.byIcon(Icons.arrow_downward), findsNothing);
+    expect(find.byIcon(Icons.arrow_upward), findsNothing);
+  });
+
+  testWidgets('sin Promedio anterior no hay flecha ni delta', (tester) async {
+    desactivarAnimaciones(tester);
+    final diario = Diario(ahora: () => DateTime(2026, 9, 6, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+    await irAPesaje(tester);
+
+    expect(find.bySemanticsLabel('Promedio 72.4 kg'), findsOneWidget);
+    expect(find.byTooltip('bajó 0.0 kg'), findsNothing);
+    expect(find.byIcon(Icons.arrow_downward), findsNothing);
+    expect(find.byIcon(Icons.arrow_upward), findsNothing);
+  });
+
+  testWidgets('Guardar también actualiza la flecha', (tester) async {
+    desactivarAnimaciones(tester);
+    final diario = Diario(ahora: () => DateTime(2026, 9, 7, 8));
+    await diario.guardarPesaje(fecha: DateTime(2026, 9, 6), kilogramos: 72.4);
+    await tester.pumpWidget(NutriMezzoApp(diario: diario));
+
+    await irAPesaje(tester);
+    expect(find.textContaining('Promedio'), findsNothing);
+
+    await tester.enterText(find.byType(TextField), '71');
+    await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(AppBar, 'Pesaje'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel('Promedio 71.0 kg, bajó 1.4 kg'),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('bajó 1.4 kg'), findsOneWidget);
+  });
 }
