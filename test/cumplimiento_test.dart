@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nutrimezzo/calendario_mes.dart';
 import 'package:nutrimezzo/diario.dart';
 import 'package:nutrimezzo/main.dart';
 
@@ -43,6 +44,7 @@ void main() {
 
     await irACumplimiento(tester);
 
+    expect(find.byType(CalendarioMes), findsOneWidget);
     expect(find.text('Comida'), findsNothing);
     expect(find.byTooltip('Día anterior'), findsNothing);
     expect(find.byTooltip('Día siguiente'), findsNothing);
@@ -81,6 +83,10 @@ void main() {
     tester,
   ) async {
     desactivarAnimaciones(tester);
+    tester.view.physicalSize = const Size(800, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
     const macros = Macros(kcal: 97, proteina: 10, carbos: 3.6, grasa: 5);
     final yogur = Alimento(
       id: 'a1',

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'ajustes.dart';
+import 'calendario_mes.dart';
 import 'captura_comida.dart';
 import 'catalogo.dart';
 import 'diario.dart';
@@ -167,10 +168,14 @@ class _HomeDiaState extends State<HomeDia> {
                   ),
               ],
             )
-          : _CalendarioMes(
+          : CalendarioMes(
               mes: _mesMostrado,
               fechaSeleccionada: _fecha,
-              cumplimientoDe: widget.diario.cumplimientoDe,
+              etiquetaDe: (fecha) => _etiquetaCumplimiento(
+                fecha,
+                widget.diario.cumplimientoDe(fecha),
+              ),
+              celdaDe: _celdaCumplimiento,
               onElegirDia: _abrirFecha,
               onMesAnterior: _mesAnterior,
               onMesSiguiente: _mesSiguiente,
@@ -256,6 +261,32 @@ class _HomeDiaState extends State<HomeDia> {
     setState(() {
       _mesMostrado = DateTime(_mesMostrado.year, _mesMostrado.month + 1);
     });
+  }
+
+  Widget _celdaCumplimiento(BuildContext context, DateTime fecha) {
+    final theme = Theme.of(context);
+    final seleccionado =
+        fecha.year == _fecha.year &&
+        fecha.month == _fecha.month &&
+        fecha.day == _fecha.day;
+    final cumplimiento = widget.diario.cumplimientoDe(fecha);
+    final fondo = _fondoCumplimiento(theme.colorScheme, cumplimiento);
+    final sobre = _colorTextoCumplimiento(theme.colorScheme, cumplimiento);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: fondo ?? Colors.transparent,
+      ),
+      child: Center(
+        child: Text(
+          '${fecha.day}',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            fontWeight: seleccionado ? FontWeight.w600 : FontWeight.w400,
+            color: sobre ?? theme.colorScheme.onSurface,
+          ),
+        ),
+      ),
+    );
   }
 
   void _alternarRenglon(Comida comida, int indice) {
@@ -620,23 +651,6 @@ class _MacroContraMeta extends StatelessWidget {
   }
 }
 
-const _diasCortos = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
-
-const _meses = [
-  'enero',
-  'febrero',
-  'marzo',
-  'abril',
-  'mayo',
-  'junio',
-  'julio',
-  'agosto',
-  'septiembre',
-  'octubre',
-  'noviembre',
-  'diciembre',
-];
-
 String _diaDeSemana(DateTime fecha) {
   const dias = [
     'lunes',
@@ -650,9 +664,7 @@ String _diaDeSemana(DateTime fecha) {
   return dias[fecha.weekday - 1];
 }
 
-String _nombreMes(DateTime fecha) => _meses[fecha.month - 1];
-
-String _etiquetaDia(DateTime fecha) => '${fecha.day} de ${_nombreMes(fecha)}';
+String _etiquetaDia(DateTime fecha) => '${fecha.day} de ${nombreMes(fecha)}';
 
 String _etiquetaCumplimiento(DateTime fecha, Cumplimiento cumplimiento) {
   final dia = _etiquetaDia(fecha);
@@ -665,141 +677,7 @@ String _etiquetaCumplimiento(DateTime fecha, Cumplimiento cumplimiento) {
 }
 
 String _fechaEnEspanol(DateTime fecha) {
-  return '${_diaDeSemana(fecha)} ${fecha.day} de ${_nombreMes(fecha)}';
-}
-
-class _CalendarioMes extends StatelessWidget {
-  const _CalendarioMes({
-    required this.mes,
-    required this.fechaSeleccionada,
-    required this.cumplimientoDe,
-    required this.onElegirDia,
-    required this.onMesAnterior,
-    required this.onMesSiguiente,
-  });
-
-  final DateTime mes;
-  final DateTime fechaSeleccionada;
-  final Cumplimiento Function(DateTime fecha) cumplimientoDe;
-  final ValueChanged<DateTime> onElegirDia;
-  final VoidCallback onMesAnterior;
-  final VoidCallback onMesSiguiente;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primer = DateTime(mes.year, mes.month, 1);
-    final diasDelMes = DateTime(mes.year, mes.month + 1, 0).day;
-    final huecos = primer.weekday - DateTime.monday;
-    final celdas = <Widget>[
-      for (var i = 0; i < huecos; i++) const SizedBox.shrink(),
-      for (var dia = 1; dia <= diasDelMes; dia++)
-        _celdaDia(theme, DateTime(mes.year, mes.month, dia)),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    IconButton(
-                      tooltip: 'Mes anterior',
-                      onPressed: onMesAnterior,
-                      icon: const Icon(Icons.chevron_left),
-                    ),
-                    Expanded(
-                      child: Text(
-                        '${_nombreMes(mes)} ${mes.year}',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleMedium,
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Mes siguiente',
-                      onPressed: onMesSiguiente,
-                      icon: const Icon(Icons.chevron_right),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    for (final nombre in _diasCortos)
-                      Expanded(
-                        child: Center(
-                          child: Text(
-                            nombre,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 7,
-                  childAspectRatio: (constraints.maxWidth / 7) / 48,
-                  children: celdas,
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _celdaDia(ThemeData theme, DateTime fecha) {
-    final seleccionado =
-        fecha.year == fechaSeleccionada.year &&
-        fecha.month == fechaSeleccionada.month &&
-        fecha.day == fechaSeleccionada.day;
-    final cumplimiento = cumplimientoDe(fecha);
-    final fondo = _fondoCumplimiento(theme.colorScheme, cumplimiento);
-    final sobre = _colorTextoCumplimiento(theme.colorScheme, cumplimiento);
-    return Semantics(
-      button: true,
-      label: _etiquetaCumplimiento(fecha, cumplimiento),
-      excludeSemantics: true,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () => onElegirDia(fecha),
-        child: Center(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: fondo ?? Colors.transparent,
-              border: seleccionado
-                  ? Border.all(color: theme.colorScheme.onSurface, width: 2)
-                  : null,
-            ),
-            child: SizedBox.square(
-              dimension: 40,
-              child: Center(
-                child: Text(
-                  '${fecha.day}',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: seleccionado
-                        ? FontWeight.w600
-                        : FontWeight.w400,
-                    color: sobre ?? theme.colorScheme.onSurface,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  return '${_diaDeSemana(fecha)} ${fecha.day} de ${nombreMes(fecha)}';
 }
 
 Color? _fondoCumplimiento(ColorScheme scheme, Cumplimiento cumplimiento) {
