@@ -49,3 +49,6 @@ app.*.map.json
 
 # Local-only machine settings (copy from .env.example). Never commit.
 .env
+
+# Tailscale state backups (contain the node private key). Never commit.
+tailscale-state*.tgz
