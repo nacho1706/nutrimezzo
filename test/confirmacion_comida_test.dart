@@ -39,7 +39,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Hoy'), findsOneWidget);
-    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
     expect(find.text('Desayuno'), findsOneWidget);
   });
 
@@ -142,7 +142,7 @@ void main() {
     expect(find.text('Hoy'), findsOneWidget);
     expect(diario.alimentos.single.nombre, 'Banana');
     expect(diario.hoy().comidas.single.renglones.single.cantidad, 110);
-    expect(find.textContaining('0.0 / 2000.0 kcal'), findsNothing);
+    expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsNothing);
   });
 
   testWidgets('la Propuesta IA muestra gramos asumidos y se pueden editar', (
@@ -187,40 +187,36 @@ void main() {
     expect(diario.alimentos.single.nombre, 'Banana');
   });
 
-  testWidgets(
-    'la Propuesta muestra macros / 100 g y los de la Cantidad',
-    (tester) async {
-      desactivarAnimaciones(tester);
-      final diario = Diario();
-      await diario.crearAlimento(
-        nombre: 'jamon cocido',
-        macrosPor100g: const Macros(
-          kcal: 145,
-          proteina: 21,
-          carbos: 1.5,
-          grasa: 5,
-        ),
-      );
-      diario.redactarComida(
-        momento: Momento.almuerzo,
-        notas: '30g jamon cocido',
-      );
-      await diario.listo();
-      await tester.pumpWidget(
-        MaterialApp(home: ConfirmacionComida(diario: diario)),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('la Propuesta muestra macros / 100 g y los de la Cantidad', (
+    tester,
+  ) async {
+    desactivarAnimaciones(tester);
+    final diario = Diario();
+    await diario.crearAlimento(
+      nombre: 'jamon cocido',
+      macrosPor100g: const Macros(
+        kcal: 145,
+        proteina: 21,
+        carbos: 1.5,
+        grasa: 5,
+      ),
+    );
+    diario.redactarComida(momento: Momento.almuerzo, notas: '30g jamon cocido');
+    await diario.listo();
+    await tester.pumpWidget(
+      MaterialApp(home: ConfirmacionComida(diario: diario)),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('145 kcal / 100 g · P 21 · C 1.5 · F 5'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('43.5 kcal / 30 g · P 6.3 · C 0.45 · F 1.5'),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(
+      find.textContaining('145 kcal / 100 g · P 21 · C 1.5 · F 5'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('43.5 kcal / 30 g · P 6.3 · C 0.45 · F 1.5'),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'cambiar Gramos actualiza los macros de la Cantidad en la Propuesta',
@@ -246,7 +242,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Gramos'), '50');
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Gramos'),
+        '50',
+      );
       await tester.pump();
 
       expect(
@@ -292,7 +291,10 @@ void main() {
         find.widgetWithText(TextFormField, 'Grasa (F)'),
         '0.3',
       );
-      await tester.enterText(find.widgetWithText(TextFormField, 'Gramos'), '110');
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Gramos'),
+        '110',
+      );
       await tester.pump();
 
       expect(
@@ -300,7 +302,10 @@ void main() {
         findsOneWidget,
       );
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Gramos'), '50');
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Gramos'),
+        '50',
+      );
       await tester.pump();
 
       expect(

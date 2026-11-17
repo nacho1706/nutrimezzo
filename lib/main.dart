@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'almacen_ajustes.dart';
 import 'diario.dart';
 import 'home_dia.dart';
+import 'tema.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,13 +29,9 @@ class NutriMezzoApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF3D6B4F),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-      ),
+      theme: temaClaro(),
+      darkTheme: temaOscuro(),
+      themeMode: ThemeMode.system,
       home: HomeDia(diario: diario),
     );
   }

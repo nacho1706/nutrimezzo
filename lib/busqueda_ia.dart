@@ -25,7 +25,9 @@ class BusquedaIAOpenAI implements PuertoBusquedaIA {
        _post = post ?? _postPorDefecto,
        // ignore: prefer_initializing_formals
        _timeout = timeout,
+       // ignore: prefer_initializing_formals
        _espera429 = espera429,
+       // ignore: prefer_initializing_formals
        _reintentos429 = reintentos429,
        _esperar = esperar ?? Future<void>.delayed;
 

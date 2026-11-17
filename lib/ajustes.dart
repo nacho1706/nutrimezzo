@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'diario.dart';
+import 'motion.dart';
+import 'tema.dart';
 
 class AjustesPagina extends StatefulWidget {
   const AjustesPagina({super.key, required this.diario});
@@ -20,6 +23,7 @@ class _AjustesPaginaState extends State<AjustesPagina> {
   late final TextEditingController _urlBase;
   late final TextEditingController _claveApi;
   late final TextEditingController _idModelo;
+  final _sacudida = ControladorSacudida();
   var _claveVisible = false;
   var _guardando = false;
 
@@ -46,112 +50,171 @@ class _AjustesPaginaState extends State<AjustesPagina> {
     _urlBase.dispose();
     _claveApi.dispose();
     _idModelo.dispose();
+    _sacudida.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final esquema = theme.colorScheme;
+    final explicacion = theme.textTheme.bodyMedium?.copyWith(
+      color: esquema.onSurfaceVariant,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ajustes')),
       body: Form(
         key: _formKey,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Meta', style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              Text(
-                'Los denominadores del Día. Cambiarlos no pide reinstalar.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              _campoNumero(
-                controller: _kcal,
-                etiqueta: 'Calorías',
-                sufijo: 'kcal',
-              ),
-              _campoNumero(
-                controller: _proteina,
-                etiqueta: 'Proteína (P)',
-                sufijo: 'g',
-              ),
-              _campoNumero(
-                controller: _carbos,
-                etiqueta: 'Carbos (C)',
-                sufijo: 'g',
-              ),
-              _campoNumero(
-                controller: _grasa,
-                etiqueta: 'Grasa (F)',
-                sufijo: 'g',
-              ),
-              const SizedBox(height: 28),
-              Text('Clave propia (BYOK)', style: theme.textTheme.headlineSmall),
-              const SizedBox(height: 8),
-              Text(
-                'Opcional. URL, clave e id de modelo en este teléfono. '
-                'En blanco el diario funciona igual.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _urlBase,
-                keyboardType: TextInputType.url,
-                autocorrect: false,
-                decoration: const InputDecoration(
-                  labelText: 'URL base',
-                  hintText: 'https://…',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _claveApi,
-                obscureText: !_claveVisible,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: 'Clave de API',
-                  suffixIcon: IconButton(
-                    tooltip: _claveVisible ? 'Ocultar clave' : 'Mostrar clave',
-                    onPressed: () {
-                      setState(() => _claveVisible = !_claveVisible);
-                    },
-                    icon: Icon(
-                      _claveVisible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
+        child: _camposSobrePapel(
+          context,
+          SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              margenPantalla,
+              8,
+              margenPantalla,
+              32,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TarjetaNutri(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Meta', style: theme.textTheme.headlineSmall),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Los denominadores del Día. Cambiarlos no pide reinstalar.',
+                        style: explicacion,
+                      ),
+                      const SizedBox(height: 20),
+                      _campoNumero(
+                        controller: _kcal,
+                        etiqueta: 'Calorías',
+                        sufijo: 'kcal',
+                        matiz: esquema.primary,
+                      ),
+                      _campoNumero(
+                        controller: _proteina,
+                        etiqueta: 'Proteína (P)',
+                        sufijo: 'g',
+                        matiz: MacroVisual.proteina.color(context),
+                      ),
+                      _campoNumero(
+                        controller: _carbos,
+                        etiqueta: 'Carbos (C)',
+                        sufijo: 'g',
+                        matiz: MacroVisual.carbos.color(context),
+                      ),
+                      _campoNumero(
+                        controller: _grasa,
+                        etiqueta: 'Grasa (F)',
+                        sufijo: 'g',
+                        matiz: MacroVisual.grasa.color(context),
+                        ultimo: true,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _idModelo,
-                autocorrect: false,
-                decoration: const InputDecoration(labelText: 'Id del modelo'),
-              ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: _guardando ? null : _borrarByok,
-                  child: const Text('Borrar BYOK'),
+                const SizedBox(height: entreSecciones),
+                TarjetaNutri(
+                  padding: const EdgeInsets.fromLTRB(
+                    rellenoTarjeta,
+                    rellenoTarjeta,
+                    rellenoTarjeta,
+                    8,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            IconosNutri.clave,
+                            size: 22,
+                            color: esquema.onSurface,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Clave propia (BYOK)',
+                              style: theme.textTheme.headlineSmall,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Opcional. URL, clave e id de modelo en este teléfono. '
+                        'En blanco el diario funciona igual.',
+                        style: explicacion,
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _urlBase,
+                        keyboardType: TextInputType.url,
+                        autocorrect: false,
+                        decoration: const InputDecoration(
+                          labelText: 'URL base',
+                          hintText: 'https://…',
+                        ),
+                      ),
+                      const SizedBox(height: entreRenglones),
+                      TextFormField(
+                        controller: _claveApi,
+                        obscureText: !_claveVisible,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        decoration: InputDecoration(
+                          labelText: 'Clave de API',
+                          suffixIcon: IconButton(
+                            tooltip: _claveVisible
+                                ? 'Ocultar clave'
+                                : 'Mostrar clave',
+                            onPressed: () {
+                              setState(() => _claveVisible = !_claveVisible);
+                            },
+                            icon: Icon(
+                              _claveVisible
+                                  ? LucideIcons.eyeOff
+                                  : LucideIcons.eye,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: entreRenglones),
+                      TextFormField(
+                        controller: _idModelo,
+                        autocorrect: false,
+                        decoration: const InputDecoration(
+                          labelText: 'Id del modelo',
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: TextButton(
+                          onPressed: _guardando ? null : _borrarByok,
+                          child: const Text('Borrar BYOK'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _guardando ? null : _guardar,
-                child: const Text('Guardar'),
-              ),
-            ],
+                const SizedBox(height: entreSecciones),
+                Sacudible(
+                  controlador: _sacudida,
+                  child: FilledButton(
+                    onPressed: _guardando ? null : _guardar,
+                    child: const Text('Guardar'),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                const _PieMarca(),
+              ],
+            ),
           ),
         ),
       ),
@@ -162,13 +225,21 @@ class _AjustesPaginaState extends State<AjustesPagina> {
     required TextEditingController controller,
     required String etiqueta,
     required String sufijo,
+    required Color matiz,
+    bool ultimo = false,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: ultimo ? 0 : entreRenglones),
       child: TextFormField(
         controller: controller,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(labelText: etiqueta, suffixText: sufijo),
+        style: cifra(Theme.of(context).textTheme.bodyLarge),
+        decoration: InputDecoration(
+          labelText: etiqueta,
+          suffixText: sufijo,
+          prefixIcon: _PuntoMatiz(color: matiz),
+          prefixIconConstraints: const BoxConstraints(minWidth: 36),
+        ),
         validator: _validarNumero,
       ),
     );
@@ -187,6 +258,7 @@ class _AjustesPaginaState extends State<AjustesPagina> {
 
   Future<void> _guardar() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
+      _sacudida.sacudir();
       return;
     }
     setState(() => _guardando = true);
@@ -202,6 +274,7 @@ class _AjustesPaginaState extends State<AjustesPagina> {
         ),
       );
       await widget.diario.guardarByok(_byokDelFormulario());
+      hapticoExito();
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -226,6 +299,69 @@ class _AjustesPaginaState extends State<AjustesPagina> {
       idModelo: _idModelo.text.trim(),
     );
   }
+}
+
+/// The 8 px dot in a macro's hue that prefixes its field.
+class _PuntoMatiz extends StatelessWidget {
+  const _PuntoMatiz({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      widthFactor: 1,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(start: 16, end: 4),
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: const SizedBox.square(dimension: 8),
+        ),
+      ),
+    );
+  }
+}
+
+/// Mark, wordmark and the privacy line under everything.
+class _PieMarca extends StatelessWidget {
+  const _PieMarca();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        const MarcaNutriMezzo(tamano: 36),
+        const SizedBox(height: 8),
+        const PalabraMarca(tamano: 18),
+        const SizedBox(height: 4),
+        Text(
+          'Todo queda en este teléfono.',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Inside a papel card in dark theme the default field fill
+/// (`surfaceContainerLow`) is nearly papel itself; lift it one step.
+Widget _camposSobrePapel(BuildContext context, Widget child) {
+  final theme = Theme.of(context);
+  if (theme.brightness != Brightness.dark) {
+    return child;
+  }
+  return Theme(
+    data: theme.copyWith(
+      inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+        fillColor: theme.colorScheme.surfaceContainerHigh,
+      ),
+    ),
+    child: child,
+  );
 }
 
 String _textoNumero(num valor) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'diario.dart';
 import 'motion.dart';
+import 'tema.dart';
 
 class ConfirmacionComida extends StatefulWidget {
   const ConfirmacionComida({super.key, required this.diario});
@@ -15,6 +16,7 @@ class ConfirmacionComida extends StatefulWidget {
 class _ConfirmacionComidaState extends State<ConfirmacionComida> {
   final _formKey = GlobalKey<FormState>();
   late final List<_FilaConfirmacion> _filas;
+  final _sacudida = ControladorSacudida();
   var _confirmando = false;
 
   @override
@@ -43,6 +45,7 @@ class _ConfirmacionComidaState extends State<ConfirmacionComida> {
       fila.grasa.removeListener(_alCambiarFila);
       fila.dispose();
     }
+    _sacudida.dispose();
     super.dispose();
   }
 
@@ -52,28 +55,64 @@ class _ConfirmacionComidaState extends State<ConfirmacionComida> {
 
   @override
   Widget build(BuildContext context) {
+    final esquema = Theme.of(context).colorScheme;
     return Scaffold(
+      backgroundColor: esquema.surface,
       appBar: AppBar(title: const Text('Confirmación')),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: Column(
           children: [
-            for (var i = 0; i < _filas.length; i++) ...[
-              if (i > 0) const SizedBox(height: 28),
-              entradaRenglon(
-                context,
-                _RenglonConfirmacion(
-                  fila: _filas[i],
-                  onElegir: (indice) => _elegirPropuesta(_filas[i], indice),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  margenPantalla,
+                  8,
+                  margenPantalla,
+                  entreSecciones,
                 ),
-                key: ValueKey(i),
+                children: [
+                  for (var i = 0; i < _filas.length; i++) ...[
+                    if (i > 0) const SizedBox(height: entreRenglones + 4),
+                    entradaRenglon(
+                      context,
+                      _RenglonConfirmacion(
+                        fila: _filas[i],
+                        onElegir: (indice) =>
+                            _elegirPropuesta(_filas[i], indice),
+                      ),
+                      key: ValueKey(i),
+                    ),
+                  ],
+                ],
               ),
-            ],
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _confirmando ? null : _confirmar,
-              child: const Text('Confirmar'),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: esquema.surface,
+                border: Border(top: hiloTarjeta(context)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    margenPantalla,
+                    12,
+                    margenPantalla,
+                    16,
+                  ),
+                  child: Sacudible(
+                    controlador: _sacudida,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _confirmando ? null : _confirmar,
+                        child: const Text('Confirmar'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -95,6 +134,7 @@ class _ConfirmacionComidaState extends State<ConfirmacionComida> {
 
   Future<void> _confirmar() async {
     if (!(_formKey.currentState?.validate() ?? false)) {
+      _sacudida.sacudir();
       return;
     }
     setState(() => _confirmando = true);
@@ -102,6 +142,7 @@ class _ConfirmacionComidaState extends State<ConfirmacionComida> {
       await widget.diario.confirmar([
         for (final fila in _filas) fila.eleccion(),
       ]);
+      hapticoExito();
       if (mounted) {
         Navigator.of(context).popUntil((ruta) => ruta.isFirst);
       }
@@ -198,6 +239,7 @@ class _RenglonConfirmacion extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final esquema = theme.colorScheme;
     final resuelto = fila.resuelto;
     final sinCantidad = resuelto.renglon.cantidad == null;
     final macrosCreados = _detalleMacrosPorCantidad(
@@ -205,110 +247,319 @@ class _RenglonConfirmacion extends StatelessWidget {
       fila.gramos.text,
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          resuelto.renglon.nombre.isEmpty
-              ? '${resuelto.renglon.cantidad} g'
-              : resuelto.renglon.nombre,
-          style: theme.textTheme.titleMedium,
-        ),
-        const SizedBox(height: 12),
-        TextFormField(
-          controller: fila.gramos,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: InputDecoration(
-            labelText: 'Gramos',
-            suffixText: 'g',
-            helperText: sinCantidad ? 'gramos asumidos' : null,
+    return TarjetaNutri(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            resuelto.renglon.nombre.isEmpty
+                ? '${resuelto.renglon.cantidad} g'
+                : resuelto.renglon.nombre,
+            style: theme.textTheme.titleLarge,
           ),
-          validator: _validarCantidad,
-        ),
-        if (resuelto.ofreceCrearAlimento) ...[
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: fila.gramos,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: cifra(theme.textTheme.bodyLarge),
+            decoration: InputDecoration(
+              labelText: 'Gramos',
+              suffixText: 'g',
+              fillColor: esquema.surfaceContainer,
+              helperText: sinCantidad ? 'gramos asumidos' : null,
+            ),
+            validator: _validarCantidad,
+          ),
           const SizedBox(height: 16),
-          Text('Crear Alimento', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          TextFormField(
-            controller: fila.nombre,
-            decoration: const InputDecoration(labelText: 'Nombre'),
-            validator: _validarNombre,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: fila.kcal,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Calorías',
-              suffixText: 'kcal / 100 g',
-            ),
-            validator: _validarMacro,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: fila.proteina,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Proteína (P)',
-              suffixText: 'g / 100 g',
-            ),
-            validator: _validarMacro,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: fila.carbos,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Carbos (C)',
-              suffixText: 'g / 100 g',
-            ),
-            validator: _validarMacro,
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: fila.grasa,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Grasa (F)',
-              suffixText: 'g / 100 g',
-            ),
-            validator: _validarMacro,
-          ),
-          if (macrosCreados != null) ...[
-            const SizedBox(height: 12),
-            Text(macrosCreados, style: theme.textTheme.bodyMedium),
-          ],
-        ] else
-          RadioGroup<int>(
-            groupValue: fila.elegida,
-            onChanged: (valor) {
-              if (valor != null) {
-                onElegir(valor);
-              }
-            },
-            child: Column(
-              children: [
-                for (var i = 0; i < resuelto.propuestas.length; i++)
-                  RadioListTile<int>(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(resuelto.propuestas[i].nombre),
-                    subtitle: Text(
-                      _detallePropuesta(
-                        resuelto.propuestas[i],
-                        fila.gramos.text,
-                      ),
+          if (resuelto.ofreceCrearAlimento)
+            _CrearAlimento(fila: fila, macrosCreados: macrosCreados)
+          else
+            RadioGroup<int>(
+              groupValue: fila.elegida,
+              onChanged: (valor) {
+                if (valor != null) {
+                  hapticoSeleccion();
+                  onElegir(valor);
+                }
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < resuelto.propuestas.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 8),
+                    _TarjetaPropuesta(
+                      propuesta: resuelto.propuestas[i],
+                      indice: i,
+                      elegida: fila.elegida == i,
+                      gramosTexto: fila.gramos.text,
                     ),
-                    isThreeLine: _detalleMacrosPorCantidad(
-                          resuelto.propuestas[i].macrosPor100g,
-                          fila.gramos.text,
-                        ) !=
-                        null,
-                    value: i,
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A Propuesta as a selectable card: still a [RadioListTile], tinted
+/// `primaryContainer` with a 2 px `primary` border when chosen.
+class _TarjetaPropuesta extends StatelessWidget {
+  const _TarjetaPropuesta({
+    required this.propuesta,
+    required this.indice,
+    required this.elegida,
+    required this.gramosTexto,
+  });
+
+  final Propuesta propuesta;
+  final int indice;
+  final bool elegida;
+  final String gramosTexto;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final esquema = theme.colorScheme;
+    final colorTexto = elegida ? esquema.onPrimaryContainer : esquema.onSurface;
+    final colorDetalle = elegida
+        ? esquema.onPrimaryContainer.withValues(alpha: 0.8)
+        : esquema.onSurfaceVariant;
+    return Presionable(
+      child: RadioListTile<int>(
+        value: indice,
+        shape: formaTarjeta(
+          radio: radioPopup,
+          lado: elegida
+              ? BorderSide(color: esquema.primary, width: 2)
+              : BorderSide(color: esquema.outlineVariant),
+        ),
+        tileColor: elegida ? esquema.primaryContainer : Colors.transparent,
+        contentPadding: const EdgeInsets.fromLTRB(4, 4, 14, 4),
+        title: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(
+                propuesta.nombre,
+                style: theme.textTheme.titleMedium?.copyWith(color: colorTexto),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: _InsigniaOrigen(deCatalogo: propuesta.alimentoId != null),
+            ),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            _detallePropuesta(propuesta, gramosTexto),
+            // DM Sans with tabular digits: DM Mono is too wide to keep
+            // each detail on one line inside the card at 412 px.
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: colorDetalle,
+              height: 1.5,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ),
+        isThreeLine:
+            _detalleMacrosPorCantidad(propuesta.macrosPor100g, gramosTexto) !=
+            null,
+      ),
+    );
+  }
+}
+
+/// Where a Propuesta comes from: the Catálogo or the IA.
+class _InsigniaOrigen extends StatelessWidget {
+  const _InsigniaOrigen({required this.deCatalogo});
+
+  final bool deCatalogo;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final esquema = theme.colorScheme;
+    final fondo = esquema.tertiaryContainer;
+    final tinta = esquema.onTertiaryContainer;
+    return DecoratedBox(
+      decoration: ShapeDecoration(color: fondo, shape: const StadiumBorder()),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(7, 3, 9, 3),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              deCatalogo ? IconosNutri.origenCatalogo : IconosNutri.origenIa,
+              size: 12,
+              color: tinta,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              deCatalogo ? 'Catálogo' : 'IA',
+              style: theme.textTheme.labelSmall?.copyWith(color: tinta),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The Crear Alimento block: a lino card, macro fields prefixed by
+/// their hue dot.
+class _CrearAlimento extends StatelessWidget {
+  const _CrearAlimento({required this.fila, required this.macrosCreados});
+
+  final _FilaConfirmacion fila;
+  final String? macrosCreados;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final esquema = theme.colorScheme;
+    final tonos = TonosNutri.of(context);
+
+    InputDecoration decoracion(
+      String etiqueta, {
+      String? sufijo,
+      MacroVisual? macro,
+    }) {
+      return InputDecoration(
+        labelText: etiqueta,
+        suffixText: sufijo,
+        fillColor: tonos.papel,
+        prefixIcon: macro == null ? null : _PuntoMacro(macro: macro),
+        prefixIconConstraints: macro == null
+            ? null
+            : const BoxConstraints(minWidth: 36, minHeight: 0),
+      );
+    }
+
+    final estiloNumero = cifra(theme.textTheme.bodyLarge);
+    const teclado = TextInputType.numberWithOptions(decimal: true);
+
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: esquema.tertiaryContainer,
+        shape: formaTarjeta(radio: radioPopup),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  IconosNutri.crear,
+                  size: 16,
+                  color: esquema.onTertiaryContainer,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Crear Alimento',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: esquema.onTertiaryContainer,
                   ),
+                ),
               ],
             ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: fila.nombre,
+              decoration: decoracion('Nombre'),
+              validator: _validarNombre,
+            ),
+            const SizedBox(height: entreRenglones),
+            TextFormField(
+              controller: fila.kcal,
+              keyboardType: teclado,
+              style: estiloNumero,
+              decoration: decoracion(
+                'Calorías',
+                sufijo: 'kcal / 100 g',
+                macro: MacroVisual.kcal,
+              ),
+              validator: _validarMacro,
+            ),
+            const SizedBox(height: entreRenglones),
+            TextFormField(
+              controller: fila.proteina,
+              keyboardType: teclado,
+              style: estiloNumero,
+              decoration: decoracion(
+                'Proteína (P)',
+                sufijo: 'g / 100 g',
+                macro: MacroVisual.proteina,
+              ),
+              validator: _validarMacro,
+            ),
+            const SizedBox(height: entreRenglones),
+            TextFormField(
+              controller: fila.carbos,
+              keyboardType: teclado,
+              style: estiloNumero,
+              decoration: decoracion(
+                'Carbos (C)',
+                sufijo: 'g / 100 g',
+                macro: MacroVisual.carbos,
+              ),
+              validator: _validarMacro,
+            ),
+            const SizedBox(height: entreRenglones),
+            TextFormField(
+              controller: fila.grasa,
+              keyboardType: teclado,
+              style: estiloNumero,
+              decoration: decoracion(
+                'Grasa (F)',
+                sufijo: 'g / 100 g',
+                macro: MacroVisual.grasa,
+              ),
+              validator: _validarMacro,
+            ),
+            if (macrosCreados != null) ...[
+              const SizedBox(height: entreRenglones),
+              Text(
+                macrosCreados!,
+                style: cifra(theme.textTheme.bodyMedium)
+                    .copyWith(color: esquema.onSurface),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PuntoMacro extends StatelessWidget {
+  const _PuntoMacro({required this.macro});
+
+  final MacroVisual macro;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: 14, end: 4),
+      child: Center(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: SizedBox.square(
+          dimension: 10,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: macro.color(context),
+              shape: BoxShape.circle,
+            ),
           ),
-      ],
+        ),
+      ),
     );
   }
 }

@@ -12,7 +12,7 @@ void main() {
     desactivarAnimaciones(tester);
     await tester.pumpWidget(NutriMezzoApp(diario: Diario()));
 
-    expect(find.text('0.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Ajustes'));
     await tester.pumpAndSettle();
@@ -22,8 +22,8 @@ void main() {
     await tester.tap(find.text('Guardar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('0.0 / 1800.0 kcal'), findsOneWidget);
-    expect(find.text('0.0 / 2000.0 kcal'), findsNothing);
+    expect(find.bySemanticsLabel('0.0 / 1800.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsNothing);
   });
 
   testWidgets('guardar y borrar BYOK queda en el Diario, sin HTTP', (
@@ -75,7 +75,7 @@ void main() {
     await tester.tap(find.text('Guardar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('0.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsOneWidget);
     expect(diario.byok.urlBase, '');
     expect(diario.byok.claveApi, '');
     expect(diario.byok.idModelo, '');

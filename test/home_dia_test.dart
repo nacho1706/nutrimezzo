@@ -62,15 +62,30 @@ void main() {
     await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
     expect(find.text('Hoy'), findsOneWidget);
-    expect(find.text('0.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Día anterior'));
     await tester.pump();
+    // Mid-slide both Días are on screen, each at its own final totals: the
+    // ring never interpolates sábado's kcal out of domingo's.
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      tester
+          .widgetList<CustomPaint>(
+            find.descendant(
+              of: find.byType(AnilloKcal),
+              matching: find.byType(CustomPaint),
+            ),
+          )
+          .map((pintura) => (pintura.painter! as PintorAnilloKcal).progreso),
+      unorderedEquals([0.0, closeTo(97 / 2000, 0.0001)]),
+    );
+    await tester.pumpAndSettle();
 
-    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
     expect(find.text('yogur griego'), findsOneWidget);
     expect(find.text('sábado 5 de septiembre'), findsOneWidget);
-    expect(find.text('0.0 / 2000.0 kcal'), findsNothing);
+    expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsNothing);
   });
 
   testDia('tocar un Renglón en el Día muestra sus Macros y no abre un editor', (
@@ -105,7 +120,7 @@ void main() {
     );
     await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
-    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
     expect(find.text('Calorías'), findsNothing);
 
     await tester.tap(find.text('yogur griego'));
@@ -120,7 +135,7 @@ void main() {
     expect(find.text('Proteína (P)'), findsNWidgets(2));
     expect(find.text('Carbos (C)'), findsNWidgets(2));
     expect(find.text('Grasa (F)'), findsNWidgets(2));
-    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
     expect(find.text('Borrar Renglón'), findsNothing);
     expect(find.text('Guardar'), findsNothing);
     expect(find.text('Cantidad'), findsNothing);
@@ -162,7 +177,7 @@ void main() {
     await tester.tap(find.text('Borrar Comida'));
     await tester.pumpAndSettle();
 
-    expect(find.text('0.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsOneWidget);
     expect(diario.hoy().comidas, isEmpty);
   });
 
@@ -182,7 +197,7 @@ void main() {
         alimentos: [yogur],
       );
       await tester.pumpWidget(NutriMezzoApp(diario: diario));
-      expect(find.text('0.0 / 2000.0 kcal'), findsOneWidget);
+      expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsOneWidget);
 
       diario.redactarComida(
         momento: Momento.desayuno,
@@ -198,7 +213,7 @@ void main() {
       ]);
       await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
-      expect(find.text('97.0 / 2000.0 kcal'), findsNothing);
+      expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsNothing);
       expect(pintorAnillo(tester).progreso, lessThan(97 / 2000));
       expect(
         tester
@@ -210,10 +225,10 @@ void main() {
       );
 
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('97.0 / 2000.0 kcal'), findsNothing);
+      expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsNothing);
 
       await tester.pumpAndSettle();
-      expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+      expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
       expect(pintorAnillo(tester).progreso, closeTo(97 / 2000, 0.0001));
       expect(
         tester
@@ -259,7 +274,7 @@ void main() {
     ]);
     await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
-    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
     expect(pintorAnillo(tester).progreso, closeTo(97 / 2000, 0.0001));
   });
 
@@ -294,7 +309,7 @@ void main() {
       );
       await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
-      expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+      expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
       expect(pintorAnillo(tester).progreso, closeTo(97 / 2000, 0.0001));
       expect(find.byType(AnilloKcal), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsNWidgets(3));
@@ -334,7 +349,7 @@ void main() {
 
     expect(find.text('sábado 5 de septiembre'), findsOneWidget);
     expect(find.text('Hoy'), findsNothing);
-    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
   });
 
   testDia(
@@ -384,7 +399,7 @@ void main() {
       expect(find.text('Desayuno'), findsOneWidget);
       expect(find.text('100 g'), findsOneWidget);
       expect(find.text('30 g'), findsOneWidget);
-      expect(find.text('126.1 / 2000.0 kcal'), findsOneWidget);
+      expect(find.bySemanticsLabel('126.1 / 2000.0 kcal'), findsOneWidget);
     },
   );
 
@@ -494,7 +509,7 @@ void main() {
     await tester.tap(find.byType(LinearProgressIndicator).first);
     await tester.pumpAndSettle();
     expect(find.text('Calorías'), findsNothing);
-    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
   });
 
   testDia(
@@ -708,7 +723,7 @@ void main() {
     );
     await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
-    expect(find.text('126.1 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('126.1 / 2000.0 kcal'), findsOneWidget);
     await tester.tap(find.byType(PopupMenuButton<String>).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Almuerzo').last);
@@ -718,7 +733,7 @@ void main() {
     expect(find.text('Almuerzo'), findsOneWidget);
     expect(find.text('100 g'), findsOneWidget);
     expect(find.text('30 g'), findsOneWidget);
-    expect(find.text('126.1 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('126.1 / 2000.0 kcal'), findsOneWidget);
 
     await tester.tap(find.byType(PopupMenuButton<String>));
     await tester.pumpAndSettle();
@@ -726,7 +741,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Almuerzo'), findsNothing);
-    expect(find.text('0.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsOneWidget);
     expect(diario.hoy().comidas, isEmpty);
   });
 
@@ -760,11 +775,11 @@ void main() {
     }
 
     await tester.pumpWidget(NutriMezzoApp(diario: diarioCon(kcal: 2000)));
-    expect(find.text('2000.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('2000.0 / 2000.0 kcal'), findsOneWidget);
     expect(pintorAnillo(tester).progreso, 1.0);
 
     await tester.pumpWidget(NutriMezzoApp(diario: diarioCon(kcal: 2200)));
-    expect(find.text('2200.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('2200.0 / 2000.0 kcal'), findsOneWidget);
     expect(pintorAnillo(tester).progreso, closeTo(1.1, 0.0001));
   });
 
@@ -846,7 +861,7 @@ void main() {
       expect(find.text('Desayuno'), findsOneWidget);
       expect(find.text('97.0 kcal'), findsOneWidget);
       expect(find.text('yogur griego'), findsOneWidget);
-      expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+      expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
 
       await tester.tap(find.text('Desayuno'));
       await tester.pump();
@@ -854,7 +869,7 @@ void main() {
       expect(find.text('Desayuno'), findsOneWidget);
       expect(find.text('97.0 kcal'), findsOneWidget);
       expect(find.text('yogur griego'), findsNothing);
-      expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+      expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
 
       await tester.tap(find.text('Desayuno'));
       await tester.pump();
@@ -991,7 +1006,7 @@ void main() {
     await tester.tap(find.text('Borrar Comida'));
     await tester.pumpAndSettle();
     expect(find.text('Desayuno'), findsNothing);
-    expect(find.text('0.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('0.0 / 2000.0 kcal'), findsOneWidget);
     expect(diario.hoy().comidas, isEmpty);
   });
 
@@ -1043,7 +1058,7 @@ void main() {
     expect(find.text('Almuerzo'), findsOneWidget);
     expect(find.text('yogur griego'), findsOneWidget);
     expect(find.text('97.0 kcal'), findsOneWidget);
-    expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+    expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
 
     await tester.tap(find.byType(PopupMenuButton<String>));
     await tester.pumpAndSettle();
@@ -1224,20 +1239,20 @@ void main() {
       );
       await tester.pumpWidget(NutriMezzoApp(diario: diario));
 
-      expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+      expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
       expect(find.text('Calorías'), findsNothing);
 
       await tester.tap(find.text('yogur griego'));
       await tester.pumpAndSettle();
       expect(find.text('Calorías'), findsOneWidget);
       expect(find.text('10.0 g'), findsOneWidget);
-      expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+      expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
 
       await tester.tap(find.text('Desayuno'));
       await tester.pump();
       expect(find.text('Calorías'), findsNothing);
       expect(find.text('yogur griego'), findsNothing);
-      expect(find.text('97.0 / 2000.0 kcal'), findsOneWidget);
+      expect(find.bySemanticsLabel('97.0 / 2000.0 kcal'), findsOneWidget);
     },
   );
 
