@@ -1,0 +1,33 @@
+# Only pubspec.*, analysis_options.yaml, lib/, assets/, web/ and deploy/nginx.conf
+# are needed to build the web image.
+.git
+.github
+.gitignore
+.dockerignore
+.idea
+.vscode
+*.iml
+.dart_tool
+.flutter-plugins-dependencies
+.pub-cache
+build
+coverage
+android
+ios
+linux
+macos
+windows
+docs
+test
+tool
+scripts
+deploy/tailscale
+.env*
+/*.png
+*.log
+Dockerfile
+docker-compose.yml
+README.md
+AGENTS.md
+CONTEXT.md
+mise.toml

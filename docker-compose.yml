@@ -1,0 +1,56 @@
+# NutriMezzo web, reachable only inside the tailnet (ADR-0012).
+#
+# Two services, one network namespace: `app` (nginx on 127.0.0.1:8080) joins
+# the `tailscale` container's namespace, and Tailscale Serve proxies
+# https://nutrimezzo.<tailnet>.ts.net -> 127.0.0.1:8080. No `ports:` anywhere:
+# nothing listens on the host's public interfaces.
+#
+# There is no database, API, or worker (ADR-0002: data lives in each browser),
+# so there is no internal network or supporting service to declare.
+#
+#   cp .env.example .env   # set TS_AUTHKEY
+#   docker compose up -d --build
+
+name: nutrimezzo
+
+services:
+  tailscale:
+    image: tailscale/tailscale:v1.104.7
+    hostname: nutrimezzo
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_STATE_DIR: /var/lib/tailscale
+      # Userspace networking: no NET_ADMIN, no /dev/net/tun.
+      TS_USERSPACE: "true"
+      TS_SERVE_CONFIG: /config/serve.json
+      # e.g. --advertise-tags=tag:nutrimezzo
+      TS_EXTRA_ARGS: ${TS_EXTRA_ARGS:-}
+      TS_ENABLE_HEALTH_CHECK: "true"
+      TS_LOCAL_ADDR_PORT: 127.0.0.1:9002
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./deploy/tailscale/serve.json:/config/serve.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9002/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: unless-stopped
+
+  app:
+    build: .
+    image: nutrimezzo-web:local
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  tailscale-state:
