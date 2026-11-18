@@ -701,6 +701,7 @@ abstract final class IconosNutri {
   static const origenCatalogo = LucideIcons.bookOpenText;
   static const origenIa = LucideIcons.sparkles;
   static const clave = LucideIcons.keyRound;
+  static const servidor = LucideIcons.server;
 }
 
 /// The Momento badge icon (coffee / utensils / moonStar / cookie).

@@ -1,14 +1,40 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'diario.dart';
 import 'motion.dart';
+import 'servidor.dart';
 import 'tema.dart';
 
+/// The device setting "Servidor" (Android only): the URL in use and how to
+/// change it. Changing it reopens the diary in the new installation type,
+/// which is the root's job, not Diario's.
+class ServidorAjustable {
+  const ServidorAjustable({required this.url, required this.cambiar});
+
+  final String url;
+  final void Function(String url) cambiar;
+}
+
 class AjustesPagina extends StatefulWidget {
-  const AjustesPagina({super.key, required this.diario});
+  const AjustesPagina({
+    super.key,
+    required this.diario,
+    this.servidor,
+    this.alojado = false,
+    this.web = kIsWeb,
+  });
 
   final Diario diario;
+
+  /// Null hides the Servidor section, as does [web].
+  final ServidorAjustable? servidor;
+
+  /// The diary lives on a server (changes the privacy line at the bottom).
+  final bool alojado;
+
+  final bool web;
 
   @override
   State<AjustesPagina> createState() => _AjustesPaginaState();
@@ -23,6 +49,7 @@ class _AjustesPaginaState extends State<AjustesPagina> {
   late final TextEditingController _urlBase;
   late final TextEditingController _claveApi;
   late final TextEditingController _idModelo;
+  late final TextEditingController _servidor;
   final _sacudida = ControladorSacudida();
   var _claveVisible = false;
   var _guardando = false;
@@ -39,7 +66,11 @@ class _AjustesPaginaState extends State<AjustesPagina> {
     _urlBase = TextEditingController(text: byok.urlBase);
     _claveApi = TextEditingController(text: byok.claveApi);
     _idModelo = TextEditingController(text: byok.idModelo);
+    _servidor = TextEditingController(text: widget.servidor?.url ?? '');
   }
+
+  ServidorAjustable? get _servidorVisible =>
+      widget.web ? null : widget.servidor;
 
   @override
   void dispose() {
@@ -50,6 +81,7 @@ class _AjustesPaginaState extends State<AjustesPagina> {
     _urlBase.dispose();
     _claveApi.dispose();
     _idModelo.dispose();
+    _servidor.dispose();
     _sacudida.dispose();
     super.dispose();
   }
@@ -203,6 +235,10 @@ class _AjustesPaginaState extends State<AjustesPagina> {
                     ],
                   ),
                 ),
+                if (_servidorVisible != null) ...[
+                  const SizedBox(height: entreSecciones),
+                  TarjetaServidor(controller: _servidor),
+                ],
                 const SizedBox(height: entreSecciones),
                 Sacudible(
                   controlador: _sacudida,
@@ -212,7 +248,7 @@ class _AjustesPaginaState extends State<AjustesPagina> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                const _PieMarca(),
+                _PieMarca(alojado: widget.alojado),
               ],
             ),
           ),
@@ -277,6 +313,11 @@ class _AjustesPaginaState extends State<AjustesPagina> {
       hapticoExito();
       if (mounted) {
         Navigator.of(context).pop();
+        final servidor = _servidorVisible;
+        final url = _servidor.text.trim();
+        if (servidor != null && url != servidor.url.trim()) {
+          servidor.cambiar(url);
+        }
       }
     } finally {
       if (mounted) {
@@ -322,9 +363,132 @@ class _PuntoMatiz extends StatelessWidget {
   }
 }
 
+/// The Servidor section: where this device's diary lives. Empty keeps it
+/// offline on the phone.
+class TarjetaServidor extends StatelessWidget {
+  const TarjetaServidor({super.key, required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final esquema = theme.colorScheme;
+    return TarjetaNutri(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(IconosNutri.servidor, size: 22, color: esquema.onSurface),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Servidor', style: theme.textTheme.headlineSmall),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Opcional. Con una URL, el diario vive en tu servidor y este '
+            'teléfono necesita alcanzarlo para anotar. El diario offline '
+            'queda guardado aparte.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: esquema.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: const InputDecoration(
+              labelText: 'URL del servidor',
+              hintText: 'https://nutrimezzo.<tu-tailnet>.ts.net',
+              helperText: 'Vacío = diario offline en este teléfono',
+            ),
+            validator: (valor) => validarServidor(valor ?? ''),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Edits only the Servidor setting; reached from the "no se pudo conectar"
+/// screen, where there is no Diario to show the full Ajustes for.
+class ServidorPagina extends StatefulWidget {
+  const ServidorPagina({super.key, required this.servidor});
+
+  final ServidorAjustable servidor;
+
+  @override
+  State<ServidorPagina> createState() => _ServidorPaginaState();
+}
+
+class _ServidorPaginaState extends State<ServidorPagina> {
+  final _formKey = GlobalKey<FormState>();
+  final _sacudida = ControladorSacudida();
+  late final _url = TextEditingController(text: widget.servidor.url);
+
+  @override
+  void dispose() {
+    _url.dispose();
+    _sacudida.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Servidor')),
+      body: Form(
+        key: _formKey,
+        child: _camposSobrePapel(
+          context,
+          SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              margenPantalla,
+              8,
+              margenPantalla,
+              32,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TarjetaServidor(controller: _url),
+                const SizedBox(height: entreSecciones),
+                Sacudible(
+                  controlador: _sacudida,
+                  child: FilledButton(
+                    onPressed: _guardar,
+                    child: const Text('Guardar'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _guardar() {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      _sacudida.sacudir();
+      return;
+    }
+    hapticoExito();
+    Navigator.of(context).pop();
+    widget.servidor.cambiar(_url.text.trim());
+  }
+}
+
 /// Mark, wordmark and the privacy line under everything.
 class _PieMarca extends StatelessWidget {
-  const _PieMarca();
+  const _PieMarca({required this.alojado});
+
+  final bool alojado;
 
   @override
   Widget build(BuildContext context) {
@@ -336,7 +500,10 @@ class _PieMarca extends StatelessWidget {
         const PalabraMarca(tamano: 18),
         const SizedBox(height: 4),
         Text(
-          'Todo queda en este teléfono.',
+          alojado
+              ? 'El diario vive en tu servidor. La clave queda en este '
+                    'dispositivo.'
+              : 'Todo queda en este teléfono.',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,

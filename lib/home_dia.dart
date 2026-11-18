@@ -13,9 +13,19 @@ import 'tema.dart';
 export 'anillo_kcal.dart' show AnilloKcal, PintorAnilloKcal;
 
 class HomeDia extends StatefulWidget {
-  const HomeDia({super.key, required this.diario});
+  const HomeDia({
+    super.key,
+    required this.diario,
+    this.servidor,
+    this.alojado = false,
+  });
 
   final Diario diario;
+
+  /// Passed through to Ajustes (see [AjustesPagina.servidor]).
+  final ServidorAjustable? servidor;
+
+  final bool alojado;
 
   @override
   State<HomeDia> createState() => _HomeDiaState();
@@ -775,7 +785,11 @@ class _HomeDiaState extends State<HomeDia> {
   Future<void> _abrirAjustes() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (context) => AjustesPagina(diario: widget.diario),
+        builder: (context) => AjustesPagina(
+          diario: widget.diario,
+          servidor: widget.servidor,
+          alojado: widget.alojado,
+        ),
       ),
     );
     if (mounted) {

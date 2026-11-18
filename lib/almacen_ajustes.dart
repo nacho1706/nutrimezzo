@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'busqueda_ia.dart';
+import 'codec_diario.dart';
 import 'diario.dart';
 
 const _kcal = 'meta.kcal';
@@ -22,7 +23,7 @@ Future<Diario> abrirDiario({DateTime Function()? ahora}) async {
   diario = Diario(
     ahora: ahora,
     meta: _metaDe(prefs),
-    byok: _byokDe(prefs),
+    byok: byokDe(prefs),
     alimentos: _alimentosDe(prefs),
     comidas: _comidasDe(prefs),
     pesajes: _pesajesDe(prefs),
@@ -52,7 +53,9 @@ Meta _metaDe(SharedPreferences prefs) {
   );
 }
 
-Byok _byokDe(SharedPreferences prefs) {
+/// The BYOK stays on each device in both installation types (ADR-0001):
+/// the hosted store reads and writes it here, never on the server.
+Byok byokDe(SharedPreferences prefs) {
   return Byok(
     urlBase: prefs.getString(_urlBase) ?? '',
     claveApi: prefs.getString(_claveApi) ?? '',
@@ -61,80 +64,23 @@ Byok _byokDe(SharedPreferences prefs) {
 }
 
 List<Alimento> _alimentosDe(SharedPreferences prefs) {
-  final crudo = prefs.getString(_alimentos);
-  if (crudo == null || crudo.isEmpty) {
-    return const [];
-  }
-  final lista = jsonDecode(crudo) as List<dynamic>;
-  return [for (final item in lista) _alimentoDe(item as Map<String, dynamic>)];
+  return [for (final item in _listaDe(prefs, _alimentos)) alimentoDeJson(item)];
 }
 
 List<Comida> _comidasDe(SharedPreferences prefs) {
-  final crudo = prefs.getString(_comidas);
-  if (crudo == null || crudo.isEmpty) {
-    return const [];
-  }
-  final lista = jsonDecode(crudo) as List<dynamic>;
-  return [for (final item in lista) _comidaDe(item as Map<String, dynamic>)];
+  return [for (final item in _listaDe(prefs, _comidas)) comidaDeJson(item)];
 }
 
 List<Pesaje> _pesajesDe(SharedPreferences prefs) {
-  final crudo = prefs.getString(_pesajes);
+  return [for (final item in _listaDe(prefs, _pesajes)) pesajeDeJson(item)];
+}
+
+Iterable<Map<String, dynamic>> _listaDe(SharedPreferences prefs, String clave) {
+  final crudo = prefs.getString(clave);
   if (crudo == null || crudo.isEmpty) {
     return const [];
   }
-  final lista = jsonDecode(crudo) as List<dynamic>;
-  return [for (final item in lista) _pesajeDe(item as Map<String, dynamic>)];
-}
-
-Alimento _alimentoDe(Map<String, dynamic> json) {
-  return Alimento(
-    id: json['id'] as String,
-    nombre: json['nombre'] as String,
-    macrosPor100g: _macrosDe(json),
-    patron: json['patron'] as String,
-    usadoPorUltimaVez: DateTime.parse(json['usadoPorUltimaVez'] as String),
-  );
-}
-
-Comida _comidaDe(Map<String, dynamic> json) {
-  final fecha = DateTime.parse(json['fecha'] as String);
-  final recibido = json['recibidoPorUltimaVez'] as String?;
-  return Comida(
-    id: json['id'] as String? ?? '',
-    momento: Momento.values.byName(json['momento'] as String),
-    fecha: DateTime(fecha.year, fecha.month, fecha.day),
-    renglones: [
-      for (final item in json['renglones'] as List<dynamic>)
-        _renglonDe(item as Map<String, dynamic>),
-    ],
-    recibidoPorUltimaVez: recibido == null ? null : DateTime.parse(recibido),
-  );
-}
-
-Renglon _renglonDe(Map<String, dynamic> json) {
-  return Renglon(
-    nombre: json['nombre'] as String,
-    cantidad: json['cantidad'] as num?,
-    alimentoId: json['alimentoId'] as String?,
-  );
-}
-
-Pesaje _pesajeDe(Map<String, dynamic> json) {
-  final fecha = DateTime.parse(json['fecha'] as String);
-  return Pesaje(
-    fecha: DateTime(fecha.year, fecha.month, fecha.day),
-    kilogramos: json['kilogramos'] as num,
-  );
-}
-
-Macros _macrosDe(Map<String, dynamic> json) {
-  return Macros(
-    kcal: json['kcal'] as num,
-    proteina: json['proteina'] as num,
-    carbos: json['carbos'] as num,
-    grasa: json['grasa'] as num,
-  );
+  return (jsonDecode(crudo) as List<dynamic>).cast<Map<String, dynamic>>();
 }
 
 Future<void> _guardar(SharedPreferences prefs, Meta meta, Byok byok) async {
@@ -142,6 +88,10 @@ Future<void> _guardar(SharedPreferences prefs, Meta meta, Byok byok) async {
   await prefs.setDouble(_proteina, meta.macros.proteina.toDouble());
   await prefs.setDouble(_carbos, meta.macros.carbos.toDouble());
   await prefs.setDouble(_grasa, meta.macros.grasa.toDouble());
+  await guardarByokEn(prefs, byok);
+}
+
+Future<void> guardarByokEn(SharedPreferences prefs, Byok byok) async {
   await prefs.setString(_urlBase, byok.urlBase);
   await prefs.setString(_claveApi, byok.claveApi);
   await prefs.setString(_idModelo, byok.idModelo);
@@ -155,59 +105,14 @@ Future<void> _guardarDiario(
 ) async {
   await prefs.setString(
     _alimentos,
-    jsonEncode([for (final alimento in alimentos) _alimentoJson(alimento)]),
+    jsonEncode([for (final alimento in alimentos) alimentoAJson(alimento)]),
   );
   await prefs.setString(
     _comidas,
-    jsonEncode([for (final comida in comidas) _comidaJson(comida)]),
+    jsonEncode([for (final comida in comidas) comidaAJson(comida)]),
   );
   await prefs.setString(
     _pesajes,
-    jsonEncode([for (final pesaje in pesajes) _pesajeJson(pesaje)]),
+    jsonEncode([for (final pesaje in pesajes) pesajeAJson(pesaje)]),
   );
-}
-
-Map<String, Object?> _alimentoJson(Alimento alimento) {
-  return {
-    'id': alimento.id,
-    'nombre': alimento.nombre,
-    'kcal': alimento.macrosPor100g.kcal,
-    'proteina': alimento.macrosPor100g.proteina,
-    'carbos': alimento.macrosPor100g.carbos,
-    'grasa': alimento.macrosPor100g.grasa,
-    'patron': alimento.patron,
-    'usadoPorUltimaVez': alimento.usadoPorUltimaVez.toIso8601String(),
-  };
-}
-
-Map<String, Object?> _comidaJson(Comida comida) {
-  final fecha = comida.fecha ?? DateTime(1970);
-  return {
-    'id': comida.id,
-    'fecha':
-        '${fecha.year.toString().padLeft(4, '0')}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}',
-    'momento': comida.momento.name,
-    'renglones': [
-      for (final renglon in comida.renglones) _renglonJson(renglon),
-    ],
-    if (comida.recibidoPorUltimaVez != null)
-      'recibidoPorUltimaVez': comida.recibidoPorUltimaVez!.toIso8601String(),
-  };
-}
-
-Map<String, Object?> _renglonJson(Renglon renglon) {
-  return {
-    'nombre': renglon.nombre,
-    'cantidad': renglon.cantidad,
-    'alimentoId': renglon.alimentoId,
-  };
-}
-
-Map<String, Object?> _pesajeJson(Pesaje pesaje) {
-  final fecha = pesaje.fecha;
-  return {
-    'fecha':
-        '${fecha.year.toString().padLeft(4, '0')}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}',
-    'kilogramos': pesaje.kilogramos,
-  };
 }
