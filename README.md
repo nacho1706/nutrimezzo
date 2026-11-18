@@ -1,6 +1,8 @@
 # NutriMezzo
 
-Diario de calorías y macros para Android y web. Se instala de dos maneras: [offline, solo en el teléfono](#opción-1-offline-solo-el-teléfono), o [con hosting propio](#opción-2-con-hosting-sincronizado), donde un servidor en tu tailnet guarda un único diario que comparten el teléfono y el navegador. El home abre el **Día** de hoy (zona horaria local) y muestra kcal, proteína, carbos y grasa contra una **Meta** por defecto. Desde **Comida** se captura un borrador por **Momento** (notas → **Renglones**). Un Día tiene una Comida por Momento: confirmar otra vez une esos Renglones. **Listo** abre la **Confirmación**: como máximo dos **Propuestas** por Renglón nuevo (mejor match local y, si hay, una de `PuertoBusquedaIA`), o **crear Alimento** si nada pega. Los gramos se ven y se editan (incluidos los asumidos); no se confirma en 0 g. Confirmar anota o continúa la Comida de ese Momento y mueve el anillo y las barras. El **Catálogo** crea el mismo tipo de Alimento.
+Diario de calorías y macros para Android y web. Se instala de dos maneras: [offline, solo en el teléfono](#opción-1-offline-solo-el-teléfono), o [con hosting propio](#opción-2-con-hosting-sincronizado), donde un servidor en tu tailnet guarda un único diario que comparten el teléfono y el navegador. El home abre el **Día** de hoy (zona horaria local) y muestra kcal, proteína, carbos y grasa contra una **Meta** por defecto. Desde **Comida** se captura un borrador por **Momento** (notas → **Renglones**). Un Día tiene una Comida por Momento: confirmar otra vez une esos Renglones. **Listo** abre la **Confirmación**: como máximo dos **Propuestas** por Renglón nuevo (mejor match local y, si hay, una de `PuertoBusquedaIA`), o **crear Alimento** si nada pega. Los gramos se ven y se editan (incluidos los asumidos); no se confirma en 0 g. Confirmar anota o continúa la Comida de ese Momento y mueve el anillo y las barras. El **Catálogo** crea el mismo tipo de Alimento. **Cumplimiento** pinta cada Día del mes contra la Meta (verde, amarillo o rojo) y **Pesaje** guarda un kg por Día con el Promedio de la Semana.
+
+La identidad visual (“Mercado”: colores, tipografías, motion, tema claro y oscuro) está en [docs/identidad-visual.md](docs/identidad-visual.md).
 
 Licencia: [MIT](LICENSE).
 
@@ -86,7 +88,7 @@ La clave de IA (BYOK) no pasa por el servidor: queda en cada dispositivo.
 ### Arranque rápido
 
 ```bash
-git clone <url-del-repo> nutrimezzo
+git clone https://github.com/nacho1706/nutrimezzo.git
 cd nutrimezzo
 cp .env.example .env
 # editá .env y poné TS_AUTHKEY=tskey-auth-...  (ver "Auth key" abajo)
