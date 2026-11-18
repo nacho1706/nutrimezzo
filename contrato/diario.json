@@ -1,0 +1,50 @@
+{
+  "revision": 7,
+  "meta": { "kcal": 2100, "proteina": 160, "carbos": 230, "grasa": 70 },
+  "alimentos": [
+    {
+      "id": "a1",
+      "nombre": "Banana",
+      "kcal": 89,
+      "proteina": 1.1,
+      "carbos": 22.8,
+      "grasa": 0.3,
+      "patron": "banana",
+      "usadoPorUltimaVez": "2026-11-17T08:30:00.000"
+    },
+    {
+      "id": "a2",
+      "nombre": "Huevo",
+      "kcal": 155,
+      "proteina": 13,
+      "carbos": 1.1,
+      "grasa": 11,
+      "patron": "huevo",
+      "usadoPorUltimaVez": "2026-11-16T09:00:00.000"
+    }
+  ],
+  "comidas": [
+    {
+      "id": "c1",
+      "fecha": "2026-11-17",
+      "momento": "desayuno",
+      "renglones": [
+        { "nombre": "banana chica", "cantidad": 90, "alimentoId": "a1" },
+        { "nombre": "2 huevos", "cantidad": 100, "alimentoId": "a2" }
+      ],
+      "recibidoPorUltimaVez": "2026-11-17T08:31:12.000"
+    },
+    {
+      "id": "c2",
+      "fecha": "2026-11-16",
+      "momento": "cena",
+      "renglones": [
+        { "nombre": "algo sin resolver", "cantidad": null, "alimentoId": null }
+      ]
+    }
+  ],
+  "pesajes": [
+    { "fecha": "2026-11-17", "kilogramos": 78.4 },
+    { "fecha": "2026-11-10", "kilogramos": 79.1 }
+  ]
+}
