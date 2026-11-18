@@ -1,12 +1,15 @@
-# NutriMezzo web, reachable only inside the tailnet (ADR-0012).
+# NutriMezzo web + sync API, reachable only inside the tailnet (ADR-0012).
 #
-# Two services, one network namespace: `app` (nginx on 127.0.0.1:8080) joins
-# the `tailscale` container's namespace, and Tailscale Serve proxies
-# https://nutrimezzo.<tailnet>.ts.net -> 127.0.0.1:8080. No `ports:` anywhere:
-# nothing listens on the host's public interfaces.
+# Three services, one network namespace: `app` (nginx on 127.0.0.1:8080) and
+# `api` (the sync server on 127.0.0.1:8081) both join the `tailscale`
+# container's namespace, and Tailscale Serve proxies
+# https://nutrimezzo.<tailnet>.ts.net -> 127.0.0.1:8080. nginx forwards /api/
+# to 127.0.0.1:8081; the API is not published anywhere else. No `ports:`
+# anywhere: nothing listens on the host's public interfaces.
 #
-# There is no database, API, or worker (ADR-0002: data lives in each browser),
-# so there is no internal network or supporting service to declare.
+# The diary lives in one SQLite file on the `nutrimezzo-data` volume
+# (/data/nutrimezzo.db inside `api`). Back it up online with:
+#   docker compose exec api sqlite3 /data/nutrimezzo.db ".backup /data/backup.db"
 #
 #   cp .env.example .env   # set TS_AUTHKEY
 #   docker compose up -d --build
@@ -38,12 +41,35 @@ services:
       retries: 3
     restart: unless-stopped
 
+  api:
+    build: ./server
+    image: nutrimezzo-api:local
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    environment:
+      NUTRIMEZZO_DB: /data/nutrimezzo.db
+      HOST: 127.0.0.1
+      PORT: "8081"
+    volumes:
+      - nutrimezzo-data:/data
+    healthcheck:
+      # The runtime image has no curl/wget: the binary checks /api/salud itself.
+      test: ["CMD", "/app/bin/server", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+    stop_grace_period: 10s
+
   app:
     build: .
     image: nutrimezzo-web:local
     network_mode: service:tailscale
     depends_on:
       - tailscale
+      - api
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
       interval: 30s
@@ -54,3 +80,4 @@ services:
 
 volumes:
   tailscale-state:
+  nutrimezzo-data:

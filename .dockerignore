@@ -31,3 +31,7 @@ README.md
 AGENTS.md
 CONTEXT.md
 mise.toml
+# The sync server has its own image (server/Dockerfile); the API contract is
+# only read by tests.
+server
+contrato
